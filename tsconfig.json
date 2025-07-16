@@ -1,0 +1,9 @@
+{
+	"extends": "@tsconfig/node24/tsconfig.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"types": ["vitest/globals"]
+	},
+	"include": ["src/**/*", "scripts"],
+	"exclude": ["node_modules", "dist", "migrations"]
+}
