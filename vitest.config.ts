@@ -8,11 +8,6 @@ export default defineConfig({
 				inline: ["@fastify/autoload"],
 			},
 		},
-		poolOptions: {
-			// threads: {
-			// 	isolate: true,
-			// },
-		},
 		testTimeout: 150_000,
 		hookTimeout: 120_000,
 	},

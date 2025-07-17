@@ -16,16 +16,12 @@ import {
 	SuccessResponseSchema,
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
-import { assertValidUser } from "../utils/user.js";
+import { assertValidUser } from "../utils/user.utils.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	fastify.post(
 		"/auth/sign-up",
 		{
-			// preHandler: fastify.rateLimit({
-			// 	max: fastify.config.rateLimit.signUpLimit,
-			// 	timeWindow: "1 minute",
-			// }),
 			config: {
 				rateLimit: {
 					max: fastify.config.rateLimit.signUpLimit,
@@ -84,13 +80,21 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			req.log.info({ email }, "Verification Email Sent");
 
-			reply.status(201).send({ status: "success", data: "ok" });
+			reply
+				.status(201)
+				.send({ status: "success", data: "Registration successful" });
 		},
 	);
 
 	fastify.post(
 		"/auth/verify-account",
 		{
+			config: {
+				rateLimit: {
+					max: fastify.config.rateLimit.accountVerificationLimit,
+					timeWindow: "1 minute",
+				},
+			},
 			schema: {
 				tags: ["Authentication"],
 				body: VerifyAccountSchemaRequest,
@@ -133,15 +137,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			reply.status(200).send({
 				status: "success" as const,
-				data: {
-					id: user!.id,
-					createdAt: user!.createdAt.toISOString(),
-					updatedAt: user!.updatedAt.toISOString(),
-					firstName: user!.firstName,
-					lastName: user!.lastName,
-					isVerified: user!.isVerified,
-					role: user!.role,
-				},
+				data: "Account verification successful",
 			});
 		},
 	);

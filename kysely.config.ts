@@ -1,8 +1,8 @@
-import dotenv from "dotenv";
+import { loadEnvFile } from "node:process";
 import { defineConfig, getKnexTimestampPrefix } from "kysely-ctl";
 import pg from "pg";
 
-dotenv.config();
+loadEnvFile(".env");
 
 export default defineConfig({
 	dialect: "pg",

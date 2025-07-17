@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
@@ -10,7 +10,7 @@ describe("Authentication", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: 8 }),
+		password: faker.internet.password({ length: SignUpPasswordMinLength }),
 	};
 
 	beforeEach(async () => {
@@ -33,10 +33,12 @@ describe("Authentication", () => {
 
 			const dbUser = await testApp.app.kysely
 				.selectFrom("users")
+				.select("isVerified")
 				.where("email", "=", user.email)
 				.executeTakeFirst();
 
 			expect(dbUser).toBeDefined();
+			assert(dbUser?.isVerified);
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {
@@ -92,21 +94,18 @@ describe("Authentication", () => {
 		it("Should be rate limited", async () => {
 			const app = await buildTestApp();
 
-			const res = await Promise.all(
-				Array.from({ length: app.app.config.rateLimit.signUpLimit! - 1 }).map(
-					async () =>
-						await app.signUp({
-							body: {
-								email: faker.internet.email(),
-								password: faker.internet.password({
-									length: SignUpPasswordMinLength,
-								}),
-							},
+			for (let i = 0; i < app.app.config.rateLimit.signUpLimit!; i++) {
+				const res = await app.signUp({
+					body: {
+						email: faker.internet.email(),
+						password: faker.internet.password({
+							length: SignUpPasswordMinLength,
 						}),
-				),
-			);
+					},
+				});
+				expect(res.statusCode).toBe(201);
+			}
 
-			res.every((r) => expect(r.statusCode).toBe(201));
 			const lastRes = await app.signUp({
 				body: {
 					email: faker.internet.email(),

@@ -1,19 +1,19 @@
 services:
-  api:
+  api_test:
     build:
       context: .
       dockerfile: Dockerfile.test
     ports:
       - "${APPLICATION_PORT}:${APPLICATION_PORT}"
     depends_on:
-      postgres:
+      postgres_test:
         condition: service_healthy
-      redis:
+      redis_test:
         condition: service_healthy
     environment:
-      DATABASE_HOST: postgres
-      REDIS_HOST: redis
-  postgres:
+      DATABASE_HOST: postgres_test
+      REDIS_HOST: redis_test
+  postgres_test:
     image: postgres:16-alpine
     restart: always
     environment:
@@ -27,7 +27,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-  redis:
+  redis_test:
     image: redis:8-alpine
     restart: always
     command: redis-server --requirepass ${REDIS_PASSWORD}

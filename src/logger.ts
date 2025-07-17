@@ -1,10 +1,7 @@
 import path from "node:path";
-import dotenv from "dotenv";
 import type { FastifyLoggerOptions, RawServerBase } from "fastify";
 import type { PinoLoggerOptions } from "fastify/types/logger.js";
 import pino from "pino";
-
-dotenv.config();
 
 const logInfoPath = process.env.LOG_INFO_PATH
 	? path.resolve(process.env.LOG_INFO_PATH)

@@ -13,13 +13,15 @@ const schema = Type.Object({
 	application: Type.Object({
 		host: Type.String(),
 		port: Type.Number({ minimum: 1, maximum: 65535 }),
+		clientUrl: Type.String(),
+		clientAccountVerificationPath: Type.String(),
+		clientResetPasswordPath: Type.String(),
 		verificationTokenTTLMinutes: Type.Number({
 			minimum: 60,
 			maximum: 1444,
 		}),
-		clientUrl: Type.String(),
-		clientAccountVerificationPath: Type.String(),
-		clientResetPasswordPath: Type.String(),
+		cookieSecret: Type.String({ minLength: 20 }),
+		cookieSecure: Type.Union([Type.Literal("false"), Type.Literal("true")]),
 		fastifyCloseGraceDelay: Type.Optional(
 			Type.Number({ minimum: 500, maximum: 5000, default: 500 }),
 		),
@@ -73,6 +75,9 @@ const schema = Type.Object({
 		signUpLimit: Type.Optional(
 			Type.Number({ minimum: 5, maximum: 8, default: 5 }),
 		),
+		accountVerificationLimit: Type.Optional(
+			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
+		),
 	}),
 });
 
@@ -81,12 +86,14 @@ export function setupConfig(): Config {
 		application: {
 			port: process.env.APPLICATION_PORT,
 			host: process.env.APPLICATION_HOST,
-			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
 			clientUrl: process.env.APPLICATION_CLIENTURL,
 			clientAccountVerificationPath:
 				process.env.APPLICATION_CLIENT_ACCOUNT_VERIFICATION_PATH,
 			clientResetPasswordPath:
 				process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
+			cookieSecret: process.env.APPLICATION_COOKIE_SECRET,
+			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
+			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
 			fastifyCloseGraceDelay: process.env.FASTIFY_CLOSE_GRACE_DELAY,
 		},
 		database: {
@@ -122,6 +129,7 @@ export function setupConfig(): Config {
 			globalLimit: process.env.RATE_LIMIT_GLOBAL,
 			notFoundLimit: process.env.RATE_LIMIT_NOT_FOUND,
 			signUpLimit: process.env.RATE_LIMIT_SIGN_UP,
+			accountVerificationLimit: process.env.RATE_LIMIT_ACCOUNT_VERIFICATION,
 		},
 	});
 
