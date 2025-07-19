@@ -1,7 +1,7 @@
 import { loadEnvFile } from "node:process";
-import closeWithGrace from "close-with-grace";
 import { buildApp } from "./app.js";
 import { setupConfig } from "./config.js";
+import closeWithGrace from "close-with-grace";
 
 loadEnvFile(".env");
 
@@ -14,7 +14,7 @@ closeWithGrace(
 		if (err) {
 			app.log.fatal({ err }, "server closing with error");
 		} else {
-			app.log.info(`${signal} received, server closing`);
+			app.log.info(`${signal} received, server closing `);
 		}
 		await app.close();
 	},

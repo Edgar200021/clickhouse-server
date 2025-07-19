@@ -8,7 +8,8 @@ export default defineConfig({
 				inline: ["@fastify/autoload"],
 			},
 		},
-		testTimeout: 150_000,
-		hookTimeout: 120_000,
+		fileParallelism: false,
+		isolate: false,
+		testTimeout: 30000,
 	},
 });

@@ -1,16 +1,14 @@
 import { Type } from "@sinclair/typebox";
-
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
 } from "../../const/type-box.js";
-import { UserSchema } from "../user.schema.js";
 
-export const SignInSchemaRequest = Type.Object({
+export const SignUpSchemaRequest = Type.Object({
 	email: Type.String({ format: "email" }),
 	password: Type.String({
 		minLength: SignUpPasswordMinLength,
 		maxLength: SignUpPasswordMaxLength,
 	}),
 });
-export const SignInSchemaResponse = UserSchema;
+export const SignUpSchemaResponse = Type.String();

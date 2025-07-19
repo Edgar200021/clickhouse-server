@@ -16,6 +16,8 @@ const schema = Type.Object({
 		clientUrl: Type.String(),
 		clientAccountVerificationPath: Type.String(),
 		clientResetPasswordPath: Type.String(),
+		sessionName: Type.String(),
+		sessionTTLMinutes: Type.Number({ minimum: 1444, maximum: 43800 }),
 		verificationTokenTTLMinutes: Type.Number({
 			minimum: 60,
 			maximum: 1444,
@@ -93,6 +95,8 @@ export function setupConfig(): Config {
 				process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
 			cookieSecret: process.env.APPLICATION_COOKIE_SECRET,
 			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
+			sessionName: process.env.SESSION_NAME,
+			sessionTTLMinutes: process.env.SESSION_TTL_MINUTES,
 			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
 			fastifyCloseGraceDelay: process.env.FASTIFY_CLOSE_GRACE_DELAY,
 		},

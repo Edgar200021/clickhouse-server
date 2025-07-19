@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { assert, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../src/const/type-box.js";
 import { buildTestApp } from "../../testApp.js";
 
@@ -44,7 +44,7 @@ describe("Authentication", () => {
 				.where("email", "=", user.email)
 				.executeTakeFirst();
 
-			assert(dbUser?.isVerified);
+			expect(dbUser?.isVerified).toBe(true);
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {

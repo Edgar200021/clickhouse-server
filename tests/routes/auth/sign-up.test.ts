@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { assert, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
@@ -38,7 +38,7 @@ describe("Authentication", () => {
 				.executeTakeFirst();
 
 			expect(dbUser).toBeDefined();
-			assert(dbUser?.isVerified);
+			expect(dbUser?.isVerified).toBe(false);
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {

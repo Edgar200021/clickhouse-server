@@ -14,6 +14,8 @@ interface TestApp {
 	app: FastifyInstance;
 	close: () => Promise<void>;
 	signUp: typeof signUp;
+	signIn: typeof signIn;
+	createAndVerify: typeof createAndVerify;
 	accountVerification: typeof accountVerification;
 }
 
@@ -35,6 +37,28 @@ async function accountVerification(
 	return await this.app.inject({
 		method: "POST",
 		url: "/api/v1/auth/verify-account",
+		...options,
+	});
+}
+
+async function createAndVerify(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	await this.signUp(options);
+	const token = (await this.app.redis.keys("*")).at(-1);
+	return this.accountVerification({
+		body: { token },
+	});
+}
+
+async function signIn(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: "/api/v1/auth/sign-in",
 		...options,
 	});
 }
@@ -63,5 +87,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		},
 		signUp,
 		accountVerification,
+		createAndVerify,
+		signIn,
 	};
 }

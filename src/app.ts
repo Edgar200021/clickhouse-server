@@ -4,7 +4,7 @@ import fastifyAutoload from "@fastify/autoload";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Ajv } from "ajv";
 import ajvFormats from "ajv-formats";
-import Fastify from "fastify";
+import Fastify, { FastifyInstance } from "fastify";
 import type { Config } from "./config.js";
 import { setupLogger } from "./logger.js";
 

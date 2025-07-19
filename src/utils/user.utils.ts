@@ -6,22 +6,28 @@ export function assertValidUser(
 	user: Pick<User, "id" | "isBanned" | "isVerified"> | undefined,
 	log: FastifyBaseLogger,
 	httpErrors: FastifyInstance["httpErrors"],
-	prefix?: string,
+	{
+		prefix,
+		checkConditions,
+	}: {
+		prefix?: string;
+		checkConditions: ("undefined" | "banned" | "notVerified")[];
+	},
 ) {
 	const context = prefix ? `${prefix} ` : "";
 
-	if (!user) {
+	if (checkConditions.includes("undefined") && !user) {
 		log.info(`${context}User not found`);
 		throw httpErrors.notFound("User not found");
 	}
 
-	if (user.isBanned) {
+	if (checkConditions.includes("banned") && user?.isBanned) {
 		log.info({ userID: user.id }, `${context}User is banned`);
 		throw httpErrors.badRequest("User is banned");
 	}
 
-	if (user.isVerified) {
-		log.info({ userID: user.id }, `${context}User already verified`);
-		throw httpErrors.badRequest("User already verified");
+	if (checkConditions.includes("notVerified") && !user?.isVerified) {
+		log.info({ userID: user?.id }, `${context}User is not verified`);
+		throw httpErrors.badRequest("User is not verified");
 	}
 }

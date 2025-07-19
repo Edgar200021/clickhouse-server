@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
 	type FastifyPluginAsyncTypebox,
 	Type,
@@ -6,7 +6,7 @@ import {
 import {
 	SignUpSchemaRequest,
 	SignUpSchemaResponse,
-} from "../schemas/auth/sign-in.schema.js";
+} from "../schemas/auth/sign-up.schema.js";
 import {
 	VerifyAccountSchemaRequest,
 	VerifyAccountSchemaResponse,
@@ -17,6 +17,10 @@ import {
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
 import { assertValidUser } from "../utils/user.utils.js";
+import {
+	SignInSchemaRequest,
+	SignInSchemaResponse,
+} from "../schemas/auth/sign-in.schema.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	fastify.post(
@@ -110,7 +114,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			const userID = await fastify.redis.getdel(token);
 
 			if (!userID) {
-				req.log.warn(
+				req.log.info(
 					{ token },
 					"Verification failed: invalid or expired token",
 				);
@@ -123,7 +127,18 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				.where("id", "=", userID)
 				.executeTakeFirst();
 
-			assertValidUser(user, req.log, fastify.httpErrors);
+			assertValidUser(user, req.log, fastify.httpErrors, {
+				prefix: "Sign in failed:",
+				checkConditions: ["undefined", "banned"],
+			});
+
+			if (user?.isVerified) {
+				req.log.info(
+					{ userID: user?.id },
+					`Verification failed:User is not verified`,
+				);
+				throw fastify.httpErrors.badRequest("User is already verified");
+			}
 
 			await fastify.kysely
 				.updateTable("users")
@@ -142,27 +157,64 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		},
 	);
 
-	// fastify.post(
-	// 	"/auth/sign-in",
-	// 	{
-	// 		schema: {
-	// 			body: Type.Object({
-	// 				email: Type.String({ format: "email" }),
-	// 				password: Type.String({ minLength: 8, maxLength: 30 }),
-	// 			}),
-	// 			response: {
-	// 				200: Type.Object({
-	// 					message: Type.String(),
-	// 				}),
-	// 			},
-	// 			tags: ["auth"],
-	// 		},
-	// 	},
-	// 	(req: FastifyRequest, reply: FastifyReply) => {
-	// 		reply.status(200);
-	// 		return { message: "sign-in" };
-	// 	},
-	// );
+	fastify.post(
+		"/auth/sign-in",
+		{
+			schema: {
+				body: SignInSchemaRequest,
+				response: {
+					200: SignInSchemaResponse,
+				},
+				tags: ["auth"],
+			},
+		},
+		async (req, reply) => {
+			const user = await fastify.kysely
+				.selectFrom("users")
+				.selectAll()
+				.where("email", "=", req.body.email)
+				.executeTakeFirst();
+
+			if (
+				!user ||
+				!(await fastify.passwordManager.compare(
+					req.body.password,
+					user.password,
+				))
+			) {
+				req.log.info("Invalid credentials");
+				throw fastify.httpErrors.badRequest("Invalid credentials");
+			}
+
+			assertValidUser(user, req.log, fastify.httpErrors, {
+				prefix: "Sign in failed:",
+				checkConditions: ["undefined", "banned", "notVerified"],
+			});
+
+			const uuid = randomUUID();
+
+			await fastify.redis.setex(
+				uuid,
+				60 * fastify.config.application.sessionTTLMinutes,
+				user.id,
+			);
+
+			reply
+				.status(200)
+				.cookie(fastify.config.application.sessionName, uuid, {
+					maxAge: fastify.config.application.sessionTTLMinutes * 60,
+				})
+				.send({
+					id: user.id,
+					createdAt: user.createdAt.toISOString(),
+					updatedAt: user.updatedAt.toISOString(),
+					firstName: user.firstName,
+					lastName: user.lastName,
+					isVerified: user.isVerified,
+					role: user.role,
+				});
+		},
+	);
 };
 
 export default plugin;
