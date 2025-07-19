@@ -160,6 +160,12 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	fastify.post(
 		"/auth/sign-in",
 		{
+			config: {
+				rateLimit: {
+					max: fastify.config.rateLimit.signInLimit,
+					timeWindow: "1 minute",
+				},
+			},
 			schema: {
 				body: SignInSchemaRequest,
 				response: {

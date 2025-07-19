@@ -77,6 +77,9 @@ const schema = Type.Object({
 		signUpLimit: Type.Optional(
 			Type.Number({ minimum: 5, maximum: 8, default: 5 }),
 		),
+		signInLimit: Type.Optional(
+			Type.Number({ minimum: 5, maximum: 15, default: 10 }),
+		),
 		accountVerificationLimit: Type.Optional(
 			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
 		),
@@ -133,6 +136,7 @@ export function setupConfig(): Config {
 			globalLimit: process.env.RATE_LIMIT_GLOBAL,
 			notFoundLimit: process.env.RATE_LIMIT_NOT_FOUND,
 			signUpLimit: process.env.RATE_LIMIT_SIGN_UP,
+			signInLimit: process.env.RATE_LIMIT_SIGN_IN,
 			accountVerificationLimit: process.env.RATE_LIMIT_ACCOUNT_VERIFICATION,
 		},
 	});
