@@ -1,11 +1,8 @@
-import fastify, {
-	FastifyInstance,
-	FastifyReply,
-	FastifyRequest,
-} from "fastify";
+import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { SessionPrefix } from "../../../const/redis.js";
 import { User } from "../../../types/db/user.js";
+import { assertValidUser } from "../../../utils/user.utils.js";
 
 declare module "fastify" {
 	export interface FastifyRequest {
@@ -19,11 +16,15 @@ function authenticate(instance: FastifyInstance) {
 		const session = this.cookies[instance.config.application.sessionName];
 
 		if (!session) {
+			this.log.info("Authentication failed: session not found");
 			return reply.unauthorized("Unauthorized");
 		}
 
 		const unsigned = this.unsignCookie(session);
-		if (!unsigned.valid) return reply.unauthorized("Unauthorized");
+		if (!unsigned.valid) {
+			this.log.info("Authentication failed: session not valid");
+			return reply.unauthorized("Unauthorized");
+		}
 
 		const userId = (
 			await instance.redis.getex(
@@ -35,7 +36,12 @@ function authenticate(instance: FastifyInstance) {
 			?.split(SessionPrefix)
 			.at(-1);
 
-		if (!userId) return reply.unauthorized("Unauthorized");
+		if (!userId) {
+			this.log.info(
+				"Authentication failed: session in db not found or expired",
+			);
+			return reply.unauthorized("Unauthorized");
+		}
 
 		const user = await instance.kysely
 			.selectFrom("users")
@@ -43,7 +49,15 @@ function authenticate(instance: FastifyInstance) {
 			.where("id", "=", userId)
 			.executeTakeFirst();
 
-		if (!user) return reply.unauthorized("Unauthorized");
+		if (!user) {
+			this.log.info("Authentication failed: user not found");
+			return reply.unauthorized("Unauthorized");
+		}
+
+		assertValidUser(user, this.log, instance.httpErrors, {
+			prefix: "Authentication failed:",
+			checkConditions: ["banned", "notVerified"],
+		});
 
 		this.user = user;
 	};
