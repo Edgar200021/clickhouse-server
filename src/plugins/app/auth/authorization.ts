@@ -1,0 +1,30 @@
+import { FastifyReply, FastifyRequest } from "fastify";
+import fp from "fastify-plugin";
+import { UserRole } from "../../../types/db/db.js";
+
+declare module "fastify" {
+	export interface FastifyRequest {
+		hasPermission: typeof hasPermission;
+	}
+}
+
+function hasPermission(
+	this: FastifyRequest,
+	reply: FastifyReply,
+	roles: UserRole[],
+) {
+	if (!this.user) return reply.unauthorized("Unauthorized");
+
+	if (!roles.includes(this.user.role)) {
+		return reply.forbidden("Access denied");
+	}
+}
+
+export default fp(
+	async function (fastify) {
+		fastify.decorateRequest("hasPermission", hasPermission);
+	},
+	{
+		name: "authorization",
+	},
+);

@@ -1,8 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
-import {
-	type FastifyPluginAsyncTypebox,
-	Type,
-} from "@fastify/type-provider-typebox";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
 	SignUpSchemaRequest,
 	SignUpSchemaResponse,
@@ -25,7 +21,6 @@ import {
 	ForgotPasswordSchemaResponse as ForgotPasswordSchemaResponse,
 	ForgotPasswordSchemaRequest,
 } from "../schemas/auth/forgot-password.schema.js";
-import assert from "node:assert";
 import {
 	ResetPasswordPrefix,
 	SessionPrefix,
@@ -36,14 +31,21 @@ import {
 	ResetPasswordSchemaResponse,
 } from "../schemas/auth/reset-password.schema.js";
 import { sql } from "kysely";
+import {
+	FastifyPluginAsyncTypebox,
+	Type,
+} from "@fastify/type-provider-typebox";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+	const { kysely, httpErrors, emailManager, passwordManager, redis, config } =
+		fastify;
+
 	fastify.post(
 		"/auth/sign-up",
 		{
 			config: {
 				rateLimit: {
-					max: fastify.config.rateLimit.signUpLimit,
+					max: config.rateLimit.signUpLimit,
 					timeWindow: "1 minute",
 				},
 			},
@@ -59,7 +61,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		async (req, reply) => {
 			const { email, password } = req.body;
 
-			const user = await fastify.kysely
+			const user = await kysely
 				.selectFrom("users")
 				.select("id")
 				.where("email", "=", email)
@@ -67,13 +69,11 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			if (user) {
 				req.log.info(`Sign Up Failed: User with email ${email} already exists`);
-				throw fastify.httpErrors.badRequest(
-					`User with email ${email} already exists`,
-				);
+				return reply.badRequest(`User with email ${email} already exists`);
 			}
 
-			const hashed = await fastify.passwordManager.hash(password);
-			const { id } = await fastify.kysely
+			const hashed = await passwordManager.hash(password);
+			const { id } = await kysely
 				.insertInto("users")
 				.values({
 					email,
@@ -87,12 +87,12 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			const token = randomBytes(16).toString("hex");
 
 			await Promise.all([
-				fastify.emailManager.sendVerificationEmail(email, token, (err) => {
+				emailManager.sendVerificationEmail(email, token, (err) => {
 					req.log.error({ err, email }, "Failed to send verification email");
 				}),
-				fastify.redis.setex(
+				redis.setex(
 					`${VerificationPrefix}${token}`,
-					60 * fastify.config.application.verificationTokenTTLMinutes,
+					60 * config.application.verificationTokenTTLMinutes,
 					id,
 				),
 			]);
@@ -110,7 +110,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		{
 			config: {
 				rateLimit: {
-					max: fastify.config.rateLimit.accountVerificationLimit,
+					max: config.rateLimit.accountVerificationLimit,
 					timeWindow: "1 minute",
 				},
 			},
@@ -126,25 +126,23 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		async (req, reply) => {
 			const { token } = req.body;
 
-			const userID = await fastify.redis.getdel(
-				`${VerificationPrefix}${token}`,
-			);
+			const userID = await redis.getdel(`${VerificationPrefix}${token}`);
 
 			if (!userID) {
 				req.log.info(
 					{ token },
 					"Verification failed: invalid or expired token",
 				);
-				throw fastify.httpErrors.notFound("Invalid or expired token");
+				return reply.notFound("Invalid or expired token");
 			}
 
-			const user = await fastify.kysely
+			const user = await kysely
 				.selectFrom("users")
 				.selectAll()
 				.where("id", "=", userID)
 				.executeTakeFirst();
 
-			assertValidUser(user, req.log, fastify.httpErrors, {
+			assertValidUser(user, req.log, httpErrors, {
 				prefix: "Verification failed:",
 				checkConditions: ["undefined", "banned"],
 			});
@@ -154,10 +152,10 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					{ userID: user?.id },
 					`Verification failed:User is not verified`,
 				);
-				throw fastify.httpErrors.badRequest("User is already verified");
+				return reply.badRequest("User is already verified");
 			}
 
-			await fastify.kysely
+			await kysely
 				.updateTable("users")
 				.set({
 					isVerified: true,
@@ -179,7 +177,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		{
 			config: {
 				rateLimit: {
-					max: fastify.config.rateLimit.signInLimit,
+					max: config.rateLimit.signInLimit,
 					timeWindow: "1 minute",
 				},
 			},
@@ -193,7 +191,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const user = await fastify.kysely
+			const user = await kysely
 				.selectFrom("users")
 				.selectAll()
 				.where("email", "=", req.body.email)
@@ -201,32 +199,29 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			if (
 				!user ||
-				!(await fastify.passwordManager.compare(
-					req.body.password,
-					user.password,
-				))
+				!(await passwordManager.compare(req.body.password, user.password))
 			) {
 				req.log.info("Invalid credentials");
-				throw fastify.httpErrors.badRequest("Invalid credentials");
+				throw httpErrors.badRequest("Invalid credentials");
 			}
 
-			assertValidUser(user, req.log, fastify.httpErrors, {
+			assertValidUser(user, req.log, httpErrors, {
 				prefix: "Sign in failed:",
 				checkConditions: ["undefined", "banned", "notVerified"],
 			});
 
 			const uuid = randomUUID();
 
-			await fastify.redis.setex(
+			await redis.setex(
 				`${SessionPrefix}${uuid}`,
-				60 * fastify.config.application.sessionTTLMinutes,
+				60 * config.application.sessionTTLMinutes,
 				user.id,
 			);
 
 			reply
 				.status(200)
-				.cookie(fastify.config.application.sessionName, uuid, {
-					maxAge: fastify.config.application.sessionTTLMinutes * 60,
+				.cookie(config.application.sessionName, uuid, {
+					maxAge: config.application.sessionTTLMinutes * 60,
 				})
 				.send({
 					status: "success",
@@ -249,7 +244,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			config: {
 				rateLimit: {
 					timeWindow: "1 minute",
-					max: fastify.config.rateLimit.forgotPasswordLimit,
+					max: config.rateLimit.forgotPasswordLimit,
 				},
 			},
 			schema: {
@@ -262,13 +257,13 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const user = await fastify.kysely
+			const user = await kysely
 				.selectFrom("users")
 				.select(["id", "email", "isVerified", "isBanned"])
 				.where("email", "=", req.body.email)
 				.executeTakeFirst();
 
-			assertValidUser(user, req.log, fastify.httpErrors, {
+			assertValidUser(user, req.log, httpErrors, {
 				prefix: "Forgot password failed:",
 				checkConditions: ["undefined", "notVerified", "banned"],
 			});
@@ -276,18 +271,14 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			const token = randomBytes(16).toString("hex");
 
 			await Promise.all([
-				fastify.redis.setex(
+				redis.setex(
 					`${ResetPasswordPrefix}${token}`,
-					60 * fastify.config.application.resetPasswordTTLMinutes,
+					60 * config.application.resetPasswordTTLMinutes,
 					user!.email,
 				),
-				fastify.emailManager.sendResetPasswordEmail(
-					user!.email,
-					token,
-					(err) => {
-						req.log.error({ err }, "Failed to send reset password email");
-					},
-				),
+				emailManager.sendResetPasswordEmail(user!.email, token, (err) => {
+					req.log.error({ err }, "Failed to send reset password email");
+				}),
 			]);
 
 			reply.status(200).send({
@@ -303,7 +294,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			config: {
 				rateLimit: {
 					timeWindow: "1 minute",
-					max: fastify.config.rateLimit.resetPasswordLimit,
+					max: config.rateLimit.resetPasswordLimit,
 				},
 			},
 			schema: {
@@ -316,31 +307,29 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const email = await fastify.redis.getdel(
+			const email = await redis.getdel(
 				`${ResetPasswordPrefix}${req.body.token}`,
 			);
 
 			if (!email) {
 				req.log.info("Token not found");
-				throw fastify.httpErrors.notFound("Token not found");
+				return reply.notFound("Token not found");
 			}
 
-			const user = await fastify.kysely
+			const user = await kysely
 				.selectFrom("users")
 				.select(["id", "isBanned", "isVerified"])
 				.where("email", "=", email)
 				.executeTakeFirst();
 
-			assertValidUser(user, req.log, fastify.httpErrors, {
+			assertValidUser(user, req.log, httpErrors, {
 				prefix: "Reset password failed:",
 				checkConditions: ["undefined", "banned", "notVerified"],
 			});
 
-			const hashedPassword = await fastify.passwordManager.hash(
-				req.body.newPassword,
-			);
+			const hashedPassword = await passwordManager.hash(req.body.newPassword);
 
-			await fastify.kysely
+			await kysely
 				.updateTable("users")
 				.set("password", hashedPassword)
 				.set("updatedAt", sql`NOW()`)

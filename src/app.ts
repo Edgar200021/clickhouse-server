@@ -64,21 +64,20 @@ export async function buildApp(config: Config) {
 				{},
 			);
 
-			reply.status(400);
-			return { status: "error", errors };
+			return reply.status(400).send({ status: "error", errors });
 		}
 
 		if (err.statusCode === 429) {
-			reply.code(429);
-			return {
+			return reply.status(429).send({
 				status: "error",
 				error: "You hit the rate limit! Slow down please!",
-			};
+			});
 		}
 
 		if (err instanceof app.httpErrors.HttpError) {
-			reply.status(err.statusCode);
-			return { status: "error", error: err.message };
+			return reply
+				.status(err.statusCode)
+				.send({ status: "error", error: err.message });
 		}
 
 		app.log.error(
@@ -94,8 +93,7 @@ export async function buildApp(config: Config) {
 			"Unhandled error occurred",
 		);
 
-		reply.status(500);
-		return { error: "Internal Server Error" };
+		reply.status(500).send({ status: "error", error: "Internal Server Error" });
 	});
 
 	app.setNotFoundHandler(
