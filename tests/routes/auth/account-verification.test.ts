@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../src/const/type-box.js";
 import { buildTestApp } from "../../testApp.js";
+import { VerificationPrefix } from "../../../src/const/redis.js";
 
 describe("Authentication", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -22,7 +23,12 @@ describe("Authentication", () => {
 		it("Should return 200 status code when request is successful", async () => {
 			await testApp.signUp({ body: user });
 
-			const token = (await testApp.app.redis.keys("*")).at(-1);
+			const token = (await testApp.app.redis.keys("*"))
+				.filter((key) => key.startsWith(VerificationPrefix))
+				.at(-1)
+				?.split(VerificationPrefix)
+				.at(-1);
+
 			const verificationRes = await testApp.accountVerification({
 				body: { token },
 			});
@@ -33,7 +39,12 @@ describe("Authentication", () => {
 		it("Should verify user when request is successful", async () => {
 			await testApp.signUp({ body: user });
 
-			const token = (await testApp.app.redis.keys("*")).at(-1);
+			const token = (await testApp.app.redis.keys("*"))
+				.filter((key) => key.startsWith(VerificationPrefix))
+				.at(-1)
+				?.split(VerificationPrefix)
+				.at(-1);
+
 			await testApp.accountVerification({
 				body: { token },
 			});
@@ -88,7 +99,11 @@ describe("Authentication", () => {
 					.where("email", "=", body.email)
 					.execute();
 
-				const token = (await testApp.app.redis.keys("*")).at(-1);
+				const token = (await testApp.app.redis.keys("*"))
+					.filter((key) => key.startsWith(VerificationPrefix))
+					.at(-1)
+					?.split(VerificationPrefix)
+					.at(-1);
 				const res = await testApp.accountVerification({
 					body: { token },
 				});
@@ -112,7 +127,12 @@ describe("Authentication", () => {
 				.where("email", "=", user.email)
 				.execute();
 
-			const token = (await testApp.app.redis.keys("*")).at(-1);
+			const token = (await testApp.app.redis.keys("*"))
+				.filter((key) => key.startsWith(VerificationPrefix))
+				.at(-1)
+				?.split(VerificationPrefix)
+				.at(-1);
+
 			const res = await testApp.accountVerification({
 				body: { token },
 			});

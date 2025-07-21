@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
 	type FastifyPluginAsyncTypebox,
 	Type,
@@ -26,6 +26,16 @@ import {
 	ForgotPasswordSchemaRequest,
 } from "../schemas/auth/forgot-password.schema.js";
 import assert from "node:assert";
+import {
+	ResetPasswordPrefix,
+	SessionPrefix,
+	VerificationPrefix,
+} from "../const/redis.js";
+import {
+	ResetPasswordSchemaRequest,
+	ResetPasswordSchemaResponse,
+} from "../schemas/auth/reset-password.schema.js";
+import { sql } from "kysely";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	fastify.post(
@@ -81,7 +91,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					req.log.error({ err, email }, "Failed to send verification email");
 				}),
 				fastify.redis.setex(
-					token,
+					`${VerificationPrefix}${token}`,
 					60 * fastify.config.application.verificationTokenTTLMinutes,
 					id,
 				),
@@ -116,7 +126,9 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		async (req, reply) => {
 			const { token } = req.body;
 
-			const userID = await fastify.redis.getdel(token);
+			const userID = await fastify.redis.getdel(
+				`${VerificationPrefix}${token}`,
+			);
 
 			if (!userID) {
 				req.log.info(
@@ -133,7 +145,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				.executeTakeFirst();
 
 			assertValidUser(user, req.log, fastify.httpErrors, {
-				prefix: "Sign in failed:",
+				prefix: "Verification failed:",
 				checkConditions: ["undefined", "banned"],
 			});
 
@@ -206,7 +218,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			const uuid = randomUUID();
 
 			await fastify.redis.setex(
-				uuid,
+				`${SessionPrefix}${uuid}`,
 				60 * fastify.config.application.sessionTTLMinutes,
 				user.id,
 			);
@@ -265,7 +277,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			await Promise.all([
 				fastify.redis.setex(
-					token,
+					`${ResetPasswordPrefix}${token}`,
 					60 * fastify.config.application.resetPasswordTTLMinutes,
 					user!.email,
 				),
@@ -281,6 +293,63 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			reply.status(200).send({
 				status: "success",
 				data: "Forgot password successful",
+			});
+		},
+	);
+
+	fastify.patch(
+		"/auth/reset-password",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: fastify.config.rateLimit.resetPasswordLimit,
+				},
+			},
+			schema: {
+				body: ResetPasswordSchemaRequest,
+				response: {
+					200: SuccessResponseSchema(ResetPasswordSchemaResponse),
+					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Authentication"],
+			},
+		},
+		async (req, reply) => {
+			const email = await fastify.redis.getdel(
+				`${ResetPasswordPrefix}${req.body.token}`,
+			);
+
+			if (!email) {
+				req.log.info("Token not found");
+				throw fastify.httpErrors.notFound("Token not found");
+			}
+
+			const user = await fastify.kysely
+				.selectFrom("users")
+				.select(["id", "isBanned", "isVerified"])
+				.where("email", "=", email)
+				.executeTakeFirst();
+
+			assertValidUser(user, req.log, fastify.httpErrors, {
+				prefix: "Reset password failed:",
+				checkConditions: ["undefined", "banned", "notVerified"],
+			});
+
+			const hashedPassword = await fastify.passwordManager.hash(
+				req.body.newPassword,
+			);
+
+			await fastify.kysely
+				.updateTable("users")
+				.set("password", hashedPassword)
+				.set("updatedAt", sql`NOW()`)
+				.where("email", "=", email)
+				.execute();
+
+			reply.status(200).send({
+				status: "success",
+				data: "Reset password successful",
 			});
 		},
 	);

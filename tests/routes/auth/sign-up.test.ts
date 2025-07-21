@@ -33,11 +33,12 @@ describe("Authentication", () => {
 
 			const dbUser = await testApp.app.kysely
 				.selectFrom("users")
-				.select("isVerified")
+				.select(["isVerified", "password"])
 				.where("email", "=", user.email)
 				.executeTakeFirst();
 
 			expect(dbUser).toBeDefined();
+			expect(dbUser?.password).not.toBe(user.password);
 			expect(dbUser?.isVerified).toBe(false);
 		});
 

@@ -90,6 +90,9 @@ const schema = Type.Object({
 		forgotPasswordLimit: Type.Optional(
 			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
 		),
+		resetPasswordLimit: Type.Optional(
+			Type.Number({ minimum: 1, maximum: 1, default: 1 }),
+		),
 	}),
 });
 
@@ -147,6 +150,7 @@ export function setupConfig(): Config {
 			signInLimit: process.env.RATE_LIMIT_SIGN_IN,
 			accountVerificationLimit: process.env.RATE_LIMIT_ACCOUNT_VERIFICATION,
 			forgotPasswordLimit: process.env.RATE_LIMIT_FORGOT_PASSWORD,
+			resetPasswordLimit: process.env.RATE_LIMIT_RESET_PASSWORD,
 		},
 	});
 
