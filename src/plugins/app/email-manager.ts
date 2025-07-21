@@ -56,15 +56,6 @@ function createEmailManager(fastify: FastifyInstance) {
 					html,
 				});
 			} catch (error) {
-				// log.error(
-				// 	{
-				// 		email: to,
-				// 		error: error instanceof Error ? error.message : error,
-				// 	},
-				// 	"Failed to send reset password email",
-				// 	error,
-				// );
-
 				onError?.(error);
 				throw fastify.httpErrors.internalServerError(
 					"Failed to send verification email",

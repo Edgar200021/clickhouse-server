@@ -22,6 +22,10 @@ const schema = Type.Object({
 			minimum: 60,
 			maximum: 1444,
 		}),
+		resetPasswordTTLMinutes: Type.Number({
+			minimum: 5,
+			maximum: 15,
+		}),
 		cookieSecret: Type.String({ minLength: 20 }),
 		cookieSecure: Type.Union([Type.Literal("false"), Type.Literal("true")]),
 		fastifyCloseGraceDelay: Type.Optional(
@@ -83,6 +87,9 @@ const schema = Type.Object({
 		accountVerificationLimit: Type.Optional(
 			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
 		),
+		forgotPasswordLimit: Type.Optional(
+			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
+		),
 	}),
 });
 
@@ -100,6 +107,7 @@ export function setupConfig(): Config {
 			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
 			sessionName: process.env.SESSION_NAME,
 			sessionTTLMinutes: process.env.SESSION_TTL_MINUTES,
+			resetPasswordTTLMinutes: process.env.RESET_PASSWORD_TTL_MINUTES,
 			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
 			fastifyCloseGraceDelay: process.env.FASTIFY_CLOSE_GRACE_DELAY,
 		},
@@ -138,6 +146,7 @@ export function setupConfig(): Config {
 			signUpLimit: process.env.RATE_LIMIT_SIGN_UP,
 			signInLimit: process.env.RATE_LIMIT_SIGN_IN,
 			accountVerificationLimit: process.env.RATE_LIMIT_ACCOUNT_VERIFICATION,
+			forgotPasswordLimit: process.env.RATE_LIMIT_FORGOT_PASSWORD,
 		},
 	});
 

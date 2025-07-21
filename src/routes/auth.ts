@@ -21,6 +21,11 @@ import {
 	SignInSchemaRequest,
 	SignInSchemaResponse,
 } from "../schemas/auth/sign-in.schema.js";
+import {
+	ForgotPasswordSchemaResponse as ForgotPasswordSchemaResponse,
+	ForgotPasswordSchemaRequest,
+} from "../schemas/auth/forgot-password.schema.js";
+import assert from "node:assert";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	fastify.post(
@@ -169,9 +174,10 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			schema: {
 				body: SignInSchemaRequest,
 				response: {
-					200: SignInSchemaResponse,
+					200: SuccessResponseSchema(SignInSchemaResponse),
+					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
-				tags: ["auth"],
+				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
@@ -211,14 +217,71 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					maxAge: fastify.config.application.sessionTTLMinutes * 60,
 				})
 				.send({
-					id: user.id,
-					createdAt: user.createdAt.toISOString(),
-					updatedAt: user.updatedAt.toISOString(),
-					firstName: user.firstName,
-					lastName: user.lastName,
-					isVerified: user.isVerified,
-					role: user.role,
+					status: "success",
+					data: {
+						id: user.id,
+						createdAt: user.createdAt.toISOString(),
+						updatedAt: user.updatedAt.toISOString(),
+						firstName: user.firstName,
+						lastName: user.lastName,
+						isVerified: user.isVerified,
+						role: user.role,
+					},
 				});
+		},
+	);
+
+	fastify.post(
+		"/auth/forgot-password",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: fastify.config.rateLimit.forgotPasswordLimit,
+				},
+			},
+			schema: {
+				body: ForgotPasswordSchemaRequest,
+				response: {
+					200: SuccessResponseSchema(ForgotPasswordSchemaResponse),
+					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Authentication"],
+			},
+		},
+		async (req, reply) => {
+			const user = await fastify.kysely
+				.selectFrom("users")
+				.select(["id", "email", "isVerified", "isBanned"])
+				.where("email", "=", req.body.email)
+				.executeTakeFirst();
+
+			assertValidUser(user, req.log, fastify.httpErrors, {
+				prefix: "Forgot password failed:",
+				checkConditions: ["undefined", "notVerified", "banned"],
+			});
+
+			const token = randomBytes(16).toString("hex");
+
+			await Promise.all([
+				fastify.redis.setex(
+					token,
+					60 * fastify.config.application.resetPasswordTTLMinutes,
+					user!.email,
+				),
+				fastify.emailManager.sendResetPasswordEmail(
+					user!.email,
+					token,
+					(err) => {
+						req.log.error({ err }, "Failed to send reset password email");
+					},
+				),
+			]);
+
+			reply.status(200).send({
+				status: "success",
+				data: "Forgot password successful",
+			});
 		},
 	);
 };

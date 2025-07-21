@@ -17,6 +17,7 @@ interface TestApp {
 	signIn: typeof signIn;
 	createAndVerify: typeof createAndVerify;
 	accountVerification: typeof accountVerification;
+	forgotPassword: typeof forgotPassword;
 }
 
 async function signUp(
@@ -63,12 +64,23 @@ async function signIn(
 	});
 }
 
+async function forgotPassword(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: "/api/v1/auth/forgot-password",
+		...options,
+	});
+}
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
 	config.database.name = randomUUID();
 	config.rateLimit.signUpLimit = 10;
 	config.rateLimit.notFoundLimit = 10;
+	config.rateLimit.forgotPasswordLimit = 10;
 	config.logger.logToFile = "false";
 
 	await dbCreate(config.database);
@@ -89,5 +101,6 @@ export async function buildTestApp(): Promise<TestApp> {
 		accountVerification,
 		createAndVerify,
 		signIn,
+		forgotPassword,
 	};
 }
