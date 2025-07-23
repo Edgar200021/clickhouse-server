@@ -93,10 +93,8 @@ describe("Authentication", () => {
 		});
 
 		it("Should be rate limited", async () => {
-			const app = await buildTestApp();
-
-			for (let i = 0; i < app.app.config.rateLimit.signUpLimit!; i++) {
-				const res = await app.signUp({
+			for (let i = 0; i < testApp.app.config.rateLimit.signUpLimit!; i++) {
+				const res = await testApp.signUp({
 					body: {
 						email: faker.internet.email(),
 						password: faker.internet.password({
@@ -107,7 +105,7 @@ describe("Authentication", () => {
 				expect(res.statusCode).toBe(201);
 			}
 
-			const lastRes = await app.signUp({
+			const lastRes = await testApp.signUp({
 				body: {
 					email: faker.internet.email(),
 					password: faker.internet.password({

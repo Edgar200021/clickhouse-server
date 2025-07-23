@@ -1,29 +1,27 @@
 import { randomUUID } from "node:crypto";
-import path from "node:path";
-import { config, loadEnvFile } from "node:process";
-import type { FastifyInstance, InjectOptions } from "fastify";
+import type {
+	FastifyInstance,
+	InjectOptions,
+	LightMyRequestResponse,
+} from "fastify";
 import { dbCreate } from "../scripts/db-create.js";
 import { dbMigrate } from "../scripts/db-migrate.js";
 import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
 import { VerificationPrefix } from "../src/const/redis.js";
-import { fa } from "@faker-js/faker";
-import { createTestAccount, createTransport } from "nodemailer";
-import passwordManager from "../src/plugins/app/password-manager.js";
-import nodemailer from "../src/plugins/external/nodemailer.js";
-
-loadEnvFile(path.join(import.meta.dirname, "../.env.test"));
 
 interface TestApp {
 	app: FastifyInstance;
 	close: () => Promise<void>;
 	signUp: typeof signUp;
 	signIn: typeof signIn;
+	withSignIn: typeof withSignIn;
 	createAndVerify: typeof createAndVerify;
 	accountVerification: typeof accountVerification;
 	forgotPassword: typeof forgotPassword;
 	resetPassword: typeof resetPassword;
+	logout: typeof logout;
 }
 
 async function signUp(
@@ -75,6 +73,57 @@ async function signIn(
 	});
 }
 
+async function withSignIn(
+	this: TestApp,
+	signInBody: Pick<InjectOptions, "body">,
+	arg:
+		| InjectOptions
+		| {
+				fn: (
+					this: TestApp,
+					options?: Omit<InjectOptions, "method" | "url">,
+				) => Promise<LightMyRequestResponse>;
+				args?: Omit<InjectOptions, "method" | "url">;
+		  },
+): Promise<LightMyRequestResponse> {
+	const res = await this.createAndVerify(signInBody);
+	if (res.statusCode !== 200) {
+		this.app.log.info(res);
+		throw new Error("Failed to create and verify account");
+	}
+
+	const signInRes = await this.signIn({ ...signInBody });
+	if (signInRes.statusCode !== 200) {
+		throw new Error("Failed to sign in");
+	}
+
+	const cookie = signInRes.cookies.find(
+		(cookie) => cookie.name === this.app.config.application.sessionName,
+	);
+
+	if (!cookie) {
+		throw new Error("Cookie not found");
+	}
+
+	if ("fn" in arg) {
+		return arg.fn.call(this, {
+			...arg.args,
+			cookies: {
+				...(arg ? arg.args?.cookies : {}),
+				[cookie.name]: cookie.value,
+			},
+		});
+	}
+
+	return this.app.inject({
+		...arg,
+		cookies: {
+			...arg.cookies,
+			[cookie.name]: cookie.value,
+		},
+	});
+}
+
 async function forgotPassword(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
@@ -97,6 +146,17 @@ async function resetPassword(
 	});
 }
 
+async function logout(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: "/api/v1/auth/logout",
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -105,6 +165,7 @@ export async function buildTestApp(): Promise<TestApp> {
 	config.rateLimit.notFoundLimit = 10;
 	config.rateLimit.forgotPasswordLimit = 10;
 	config.rateLimit.resetPasswordLimit = 10;
+	config.rateLimit.accountVerificationLimit = 10;
 	config.logger.logToFile = "false";
 
 	await dbCreate(config.database);
@@ -125,7 +186,9 @@ export async function buildTestApp(): Promise<TestApp> {
 		accountVerification,
 		createAndVerify,
 		signIn,
+		withSignIn,
 		forgotPassword,
 		resetPassword,
+		logout,
 	};
 }

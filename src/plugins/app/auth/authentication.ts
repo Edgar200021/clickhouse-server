@@ -62,6 +62,7 @@ function authenticate(instance: FastifyInstance) {
 		this.user = user;
 	};
 }
+
 export default fp(
 	async function (fastify) {
 		fastify.decorateRequest("user", null);

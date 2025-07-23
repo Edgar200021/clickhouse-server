@@ -110,17 +110,15 @@ describe("Authentication", () => {
 		});
 
 		it("Should be rate limited", async () => {
-			const app = await buildTestApp();
-
-			for (let i = 0; i < app.app.config.rateLimit.signInLimit!; i++) {
-				const res = await app.signIn({
+			for (let i = 0; i < testApp.app.config.rateLimit.signInLimit!; i++) {
+				const res = await testApp.signIn({
 					body: user,
 				});
 
 				expect(res.statusCode).toBe(400);
 			}
 
-			const lastRes = await app.signIn({
+			const lastRes = await testApp.signIn({
 				body: user,
 			});
 

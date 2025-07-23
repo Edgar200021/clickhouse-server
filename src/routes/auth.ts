@@ -1,5 +1,27 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import {
+	type FastifyPluginAsyncTypebox,
+	Type,
+} from "@fastify/type-provider-typebox";
+import { sql } from "kysely";
+import {
+	ResetPasswordPrefix,
+	SessionPrefix,
+	VerificationPrefix,
+} from "../const/redis.js";
+import {
+	ForgotPasswordSchemaRequest,
+	ForgotPasswordSchemaResponse,
+} from "../schemas/auth/forgot-password.schema.js";
+import {
+	ResetPasswordSchemaRequest,
+	ResetPasswordSchemaResponse,
+} from "../schemas/auth/reset-password.schema.js";
+import {
+	SignInSchemaRequest,
+	SignInSchemaResponse,
+} from "../schemas/auth/sign-in.schema.js";
+import {
 	SignUpSchemaRequest,
 	SignUpSchemaResponse,
 } from "../schemas/auth/sign-up.schema.js";
@@ -13,28 +35,6 @@ import {
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
 import { assertValidUser } from "../utils/user.utils.js";
-import {
-	SignInSchemaRequest,
-	SignInSchemaResponse,
-} from "../schemas/auth/sign-in.schema.js";
-import {
-	ForgotPasswordSchemaResponse as ForgotPasswordSchemaResponse,
-	ForgotPasswordSchemaRequest,
-} from "../schemas/auth/forgot-password.schema.js";
-import {
-	ResetPasswordPrefix,
-	SessionPrefix,
-	VerificationPrefix,
-} from "../const/redis.js";
-import {
-	ResetPasswordSchemaRequest,
-	ResetPasswordSchemaResponse,
-} from "../schemas/auth/reset-password.schema.js";
-import { sql } from "kysely";
-import {
-	FastifyPluginAsyncTypebox,
-	Type,
-} from "@fastify/type-provider-typebox";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	const { kysely, httpErrors, emailManager, passwordManager, redis, config } =
@@ -340,6 +340,33 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				status: "success",
 				data: "Reset password successful",
 			});
+		},
+	);
+
+	fastify.post(
+		"/auth/logout",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.logoutLimit,
+				},
+			},
+			preHandler: async (req, reply) => await req.authenticate(reply),
+		},
+		async (req, reply) => {
+			const session = req.cookies[config.application.sessionName];
+
+			if (!session) {
+				req.log.info("Logoud failed: session not found");
+				return reply.notFound("Session not found ");
+			}
+
+			const unsigned = req.unsignCookie(session);
+
+			await redis.del(`${SessionPrefix}${unsigned.value}`);
+
+			reply.status(200).clearCookie(config.application.sessionName).send();
 		},
 	);
 };

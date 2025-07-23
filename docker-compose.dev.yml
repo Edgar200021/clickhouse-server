@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      target: development
     ports:
       - "${APPLICATION_PORT}:${APPLICATION_PORT}"
     depends_on:
@@ -10,9 +10,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      DATABASE_HOST: postgres
-      REDIS_HOST: redis
+    env_file: .env
+    volumes:
+      - .:/app
+      - /app/node_modules
   postgres:
     image: postgres:16-alpine
     restart: always
@@ -40,7 +41,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-
+    ports:
+      - "6380:6379"
 volumes:
   pgdata:
   redisdata:

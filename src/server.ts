@@ -1,9 +1,6 @@
-import { loadEnvFile } from "node:process";
 import { buildApp } from "./app.js";
 import { setupConfig } from "./config.js";
 import closeWithGrace from "close-with-grace";
-
-loadEnvFile(".env");
 
 const config = setupConfig();
 const app = await buildApp(config);

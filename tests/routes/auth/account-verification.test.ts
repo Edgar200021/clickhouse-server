@@ -1,8 +1,8 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
+import { VerificationPrefix } from "../../../src/const/redis.js";
 import { SignUpPasswordMinLength } from "../../../src/const/type-box.js";
 import { buildTestApp } from "../../testApp.js";
-import { VerificationPrefix } from "../../../src/const/redis.js";
 
 describe("Authentication", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -141,14 +141,12 @@ describe("Authentication", () => {
 		});
 
 		it("Should be rate limited", async () => {
-			const app = await buildTestApp();
-
 			for (
 				let i = 0;
-				i < app.app.config.rateLimit.accountVerificationLimit!;
+				i < testApp.app.config.rateLimit.accountVerificationLimit!;
 				i++
 			) {
-				const res = await app.accountVerification({
+				const res = await testApp.accountVerification({
 					body: {
 						token: "Some token",
 					},
@@ -156,7 +154,7 @@ describe("Authentication", () => {
 				expect(res.statusCode).toBe(404);
 			}
 
-			const lastRes = await app.accountVerification({
+			const lastRes = await testApp.accountVerification({
 				body: {
 					token: "Some token",
 				},
