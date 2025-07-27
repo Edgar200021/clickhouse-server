@@ -6,17 +6,8 @@ import {
 import { UserSchema } from "../schemas/user.schema.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
-	const {
-		kysely,
-		httpErrors,
-		emailManager,
-		passwordManager,
-		redis,
-		config,
-		get,
-		post,
-		patch,
-	} = fastify;
+	const { kysely, httpErrors, emailManager, passwordManager, redis, config } =
+		fastify;
 
 	fastify.get(
 		"/user",
@@ -42,9 +33,8 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					id: user.id,
 					createdAt: user.createdAt.toISOString(),
 					updatedAt: user.updatedAt.toISOString(),
-					firstName: user.firstName,
+					email: user.email,
 					isVerified: user.isVerified,
-					lastName: user.lastName,
 					role: user.role,
 				},
 			});

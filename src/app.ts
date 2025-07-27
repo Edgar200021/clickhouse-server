@@ -8,6 +8,12 @@ import Fastify from "fastify";
 import type { Config } from "./config.js";
 import { setupLogger } from "./logger.js";
 
+declare module "fastify" {
+	interface FastifyInstance {
+		ajv: Ajv;
+	}
+}
+
 export async function buildApp(config: Config) {
 	const ajv = ajvFormats.default(
 		new Ajv({
@@ -25,6 +31,7 @@ export async function buildApp(config: Config) {
 		.withTypeProvider<TypeBoxTypeProvider>()
 		.setValidatorCompiler(({ schema }) => ajv.compile(schema));
 
+	app.decorate("ajv", ajv);
 	app.decorate("config", config);
 
 	await app.register(fastifyAutoload, {

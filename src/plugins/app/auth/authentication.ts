@@ -1,8 +1,13 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import fastify, {
+	FastifyInstance,
+	FastifyReply,
+	FastifyRequest,
+} from "fastify";
 import fp from "fastify-plugin";
 import { SessionPrefix } from "../../../const/redis.js";
 import { User } from "../../../types/db/user.js";
 import { assertValidUser } from "../../../utils/user.utils.js";
+import { OAauthSessionPrefix } from "../../../const/session.js";
 
 declare module "fastify" {
 	export interface FastifyRequest {
@@ -26,12 +31,17 @@ function authenticate(instance: FastifyInstance) {
 			return reply.unauthorized("Unauthorized");
 		}
 
+		const [oauthPrefix, value] = unsigned.value.split(OAauthSessionPrefix);
+		const isOauth = oauthPrefix === "" && value;
+
 		const userId = (
-			await instance.redis.getex(
-				`${SessionPrefix}${unsigned.value}`,
-				"EX",
-				60 * instance.config.application.sessionTTLMinutes,
-			)
+			!isOauth
+				? await instance.redis.get(`${SessionPrefix}${unsigned.value}`)
+				: await instance.redis.getex(
+						`${SessionPrefix}${value}`,
+						"EX",
+						60 * instance.config.application.OAuth2sessionTTLMinutes,
+					)
 		)
 			?.split(SessionPrefix)
 			.at(-1);
@@ -58,6 +68,12 @@ function authenticate(instance: FastifyInstance) {
 			prefix: "Authentication failed:",
 			checkConditions: ["banned", "notVerified"],
 		});
+
+		if (isOauth) {
+			reply.setCookie(instance.config.application.sessionName, unsigned.value, {
+				maxAge: instance.config.application.OAuth2sessionTTLMinutes * 60,
+			});
+		}
 
 		this.user = user;
 	};

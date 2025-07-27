@@ -1,6 +1,8 @@
-import { Type } from "@sinclair/typebox";
+import { Static, Type } from "@sinclair/typebox";
 
-export const VerifyAccountSchemaRequest = Type.Object({
+export const VerifyAccountRequestSchema = Type.Object({
 	token: Type.String(),
 });
-export const VerifyAccountSchemaResponse = Type.String();
+export const VerifyAccountResponseSchema = Type.String();
+
+export type VerifyAccountRequest = Static<typeof VerifyAccountRequestSchema>;

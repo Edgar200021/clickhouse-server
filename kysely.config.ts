@@ -1,9 +1,7 @@
-import { loadEnvFile } from "node:process";
 import { defineConfig, getKnexTimestampPrefix } from "kysely-ctl";
 import pg from "pg";
 
-loadEnvFile(".env");
-
+console.log(process.env);
 export default defineConfig({
 	dialect: "pg",
 	dialectConfig: {

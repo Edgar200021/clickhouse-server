@@ -6,8 +6,7 @@ export const UserSchema = Type.Object({
 	id: Type.String({ format: "uuid" }),
 	createdAt: Type.String({ format: "date-time" }),
 	updatedAt: Type.String({ format: "date-time" }),
-	firstName: NullableSchema(Type.String()),
-	lastName: NullableSchema(Type.String()),
+	email: NullableSchema(Type.String({ format: "email" })),
 	isVerified: Type.Boolean(),
 	role: Type.Enum(UserRole),
 });

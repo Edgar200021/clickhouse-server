@@ -10,35 +10,34 @@ import {
 	VerificationPrefix,
 } from "../const/redis.js";
 import {
-	ForgotPasswordSchemaRequest,
-	ForgotPasswordSchemaResponse,
+	ForgotPasswordRequestSchema,
+	ForgotPasswordResponseSchema,
 } from "../schemas/auth/forgot-password.schema.js";
 import {
-	ResetPasswordSchemaRequest,
-	ResetPasswordSchemaResponse,
+	ResetPasswordRequestSchema,
+	ResetPasswordResponseSchema,
 } from "../schemas/auth/reset-password.schema.js";
 import {
-	SignInSchemaRequest,
-	SignInSchemaResponse,
+	SignInRequestSchema,
+	SignInResponseSchema,
 } from "../schemas/auth/sign-in.schema.js";
 import {
-	SignUpSchemaRequest,
-	SignUpSchemaResponse,
+	SignUpRequestSchema,
+	SignUpResponseSchema,
 } from "../schemas/auth/sign-up.schema.js";
 import {
-	VerifyAccountSchemaRequest,
-	VerifyAccountSchemaResponse,
+	VerifyAccountRequestSchema,
+	VerifyAccountResponseSchema,
 } from "../schemas/auth/verify-account.schema.js";
 import {
 	ErrorResponseSchema,
 	SuccessResponseSchema,
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
-import { assertValidUser } from "../utils/user.utils.js";
+import { OAuthRequestQuerySchema } from "../schemas/auth/oauth.schema.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
-	const { kysely, httpErrors, emailManager, passwordManager, redis, config } =
-		fastify;
+	const { config, authService } = fastify;
 
 	fastify.post(
 		"/auth/sign-up",
@@ -51,55 +50,17 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				tags: ["Authentication"],
-				body: SignUpSchemaRequest,
+				body: SignUpRequestSchema,
 				response: {
-					201: SuccessResponseSchema(SignUpSchemaResponse),
+					201: SuccessResponseSchema(SignUpResponseSchema),
 					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 			},
 		},
 		async (req, reply) => {
-			const { email, password } = req.body;
+			await authService.signUp(req.body, req.log);
 
-			const user = await kysely
-				.selectFrom("users")
-				.select("id")
-				.where("email", "=", email)
-				.executeTakeFirst();
-
-			if (user) {
-				req.log.info(`Sign Up Failed: User with email ${email} already exists`);
-				return reply.badRequest(`User with email ${email} already exists`);
-			}
-
-			const hashed = await passwordManager.hash(password);
-			const { id } = await kysely
-				.insertInto("users")
-				.values({
-					email,
-					password: hashed,
-				})
-				.returning("id")
-				.executeTakeFirstOrThrow();
-
-			req.log.info({ userID: id }, "User Created");
-
-			const token = randomBytes(16).toString("hex");
-
-			await Promise.all([
-				emailManager.sendVerificationEmail(email, token, (err) => {
-					req.log.error({ err, email }, "Failed to send verification email");
-				}),
-				redis.setex(
-					`${VerificationPrefix}${token}`,
-					60 * config.application.verificationTokenTTLMinutes,
-					id,
-				),
-			]);
-
-			req.log.info({ email }, "Verification Email Sent");
-
-			reply
+			await reply
 				.status(201)
 				.send({ status: "success", data: "Registration successful" });
 		},
@@ -116,59 +77,53 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				tags: ["Authentication"],
-				body: VerifyAccountSchemaRequest,
+				body: VerifyAccountRequestSchema,
 				response: {
-					200: SuccessResponseSchema(VerifyAccountSchemaResponse),
+					200: SuccessResponseSchema(VerifyAccountResponseSchema),
 					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 			},
 		},
 		async (req, reply) => {
-			const { token } = req.body;
-
-			const userID = await redis.getdel(`${VerificationPrefix}${token}`);
-
-			if (!userID) {
-				req.log.info(
-					{ token },
-					"Verification failed: invalid or expired token",
-				);
-				return reply.notFound("Invalid or expired token");
-			}
-
-			const user = await kysely
-				.selectFrom("users")
-				.selectAll()
-				.where("id", "=", userID)
-				.executeTakeFirst();
-
-			assertValidUser(user, req.log, httpErrors, {
-				prefix: "Verification failed:",
-				checkConditions: ["undefined", "banned"],
-			});
-
-			if (user?.isVerified) {
-				req.log.info(
-					{ userID: user?.id },
-					`Verification failed:User is not verified`,
-				);
-				return reply.badRequest("User is already verified");
-			}
-
-			await kysely
-				.updateTable("users")
-				.set({
-					isVerified: true,
-				})
-				.where("id", "=", userID)
-				.execute();
-
-			req.log.info({ userID }, "User verified");
-
+			await authService.verifyAccount(req.body, req.log);
 			reply.status(200).send({
 				status: "success" as const,
 				data: "Account verification successful",
 			});
+		},
+	);
+
+	fastify.post(
+		"/auth/google",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.oauthSignIn,
+				},
+			},
+		},
+		async (req, reply) => {
+			const url = authService.googleSignInUrl(req);
+			reply.redirect(url);
+		},
+	);
+
+	fastify.get(
+		"/auth/google/callback",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.oauthSignIn,
+				},
+			},
+			schema: {
+				querystring: OAuthRequestQuerySchema,
+			},
+		},
+		async (req, reply) => {
+			await authService.googleSignIn(req.query, req, reply);
 		},
 	);
 
@@ -182,41 +137,16 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				},
 			},
 			schema: {
-				body: SignInSchemaRequest,
+				body: SignInRequestSchema,
 				response: {
-					200: SuccessResponseSchema(SignInSchemaResponse),
+					200: SuccessResponseSchema(SignInResponseSchema),
 					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
-			const user = await kysely
-				.selectFrom("users")
-				.selectAll()
-				.where("email", "=", req.body.email)
-				.executeTakeFirst();
-
-			if (
-				!user ||
-				!(await passwordManager.compare(req.body.password, user.password))
-			) {
-				req.log.info("Invalid credentials");
-				throw httpErrors.badRequest("Invalid credentials");
-			}
-
-			assertValidUser(user, req.log, httpErrors, {
-				prefix: "Sign in failed:",
-				checkConditions: ["undefined", "banned", "notVerified"],
-			});
-
-			const uuid = randomUUID();
-
-			await redis.setex(
-				`${SessionPrefix}${uuid}`,
-				60 * config.application.sessionTTLMinutes,
-				user.id,
-			);
+			const { uuid, user } = await authService.signIn(req.body, req.log);
 
 			reply
 				.status(200)
@@ -229,8 +159,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 						id: user.id,
 						createdAt: user.createdAt.toISOString(),
 						updatedAt: user.updatedAt.toISOString(),
-						firstName: user.firstName,
-						lastName: user.lastName,
+						email: user.email,
 						isVerified: user.isVerified,
 						role: user.role,
 					},
@@ -248,38 +177,16 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				},
 			},
 			schema: {
-				body: ForgotPasswordSchemaRequest,
+				body: ForgotPasswordRequestSchema,
 				response: {
-					200: SuccessResponseSchema(ForgotPasswordSchemaResponse),
+					200: SuccessResponseSchema(ForgotPasswordResponseSchema),
 					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
-			const user = await kysely
-				.selectFrom("users")
-				.select(["id", "email", "isVerified", "isBanned"])
-				.where("email", "=", req.body.email)
-				.executeTakeFirst();
-
-			assertValidUser(user, req.log, httpErrors, {
-				prefix: "Forgot password failed:",
-				checkConditions: ["undefined", "notVerified", "banned"],
-			});
-
-			const token = randomBytes(16).toString("hex");
-
-			await Promise.all([
-				redis.setex(
-					`${ResetPasswordPrefix}${token}`,
-					60 * config.application.resetPasswordTTLMinutes,
-					user!.email,
-				),
-				emailManager.sendResetPasswordEmail(user!.email, token, (err) => {
-					req.log.error({ err }, "Failed to send reset password email");
-				}),
-			]);
+			await authService.forgotPassword(req.body, req.log);
 
 			reply.status(200).send({
 				status: "success",
@@ -298,43 +205,16 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				},
 			},
 			schema: {
-				body: ResetPasswordSchemaRequest,
+				body: ResetPasswordRequestSchema,
 				response: {
-					200: SuccessResponseSchema(ResetPasswordSchemaResponse),
+					200: SuccessResponseSchema(ResetPasswordResponseSchema),
 					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
-			const email = await redis.getdel(
-				`${ResetPasswordPrefix}${req.body.token}`,
-			);
-
-			if (!email) {
-				req.log.info("Token not found");
-				return reply.notFound("Token not found");
-			}
-
-			const user = await kysely
-				.selectFrom("users")
-				.select(["id", "isBanned", "isVerified"])
-				.where("email", "=", email)
-				.executeTakeFirst();
-
-			assertValidUser(user, req.log, httpErrors, {
-				prefix: "Reset password failed:",
-				checkConditions: ["undefined", "banned", "notVerified"],
-			});
-
-			const hashedPassword = await passwordManager.hash(req.body.newPassword);
-
-			await kysely
-				.updateTable("users")
-				.set("password", hashedPassword)
-				.set("updatedAt", sql`NOW()`)
-				.where("email", "=", email)
-				.execute();
+			await authService.resetPassword(req.body, req.log);
 
 			reply.status(200).send({
 				status: "success",
@@ -355,16 +235,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			preHandler: async (req, reply) => await req.authenticate(reply),
 		},
 		async (req, reply) => {
-			const session = req.cookies[config.application.sessionName];
-
-			if (!session) {
-				req.log.info("Logoud failed: session not found");
-				return reply.notFound("Session not found ");
-			}
-
-			const unsigned = req.unsignCookie(session);
-
-			await redis.del(`${SessionPrefix}${unsigned.value}`);
+			await authService.logout(req);
 
 			reply.status(200).clearCookie(config.application.sessionName).send();
 		},

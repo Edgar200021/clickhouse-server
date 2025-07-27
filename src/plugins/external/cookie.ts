@@ -12,4 +12,4 @@ export const autoConfig = (fastify: FastifyInstance): FastifyCookieOptions => ({
 	},
 });
 
-export default fp(fastifyCookie);
+export default fp(fastifyCookie, { name: "cookie" });

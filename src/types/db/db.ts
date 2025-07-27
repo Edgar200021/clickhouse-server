@@ -6,29 +6,30 @@
 import type { ColumnType } from "kysely";
 
 export enum UserRole {
-	Admin = "admin",
-	Regular = "regular",
+  Admin = "admin",
+  Regular = "regular",
 }
 
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
-	? ColumnType<S, I | undefined, U>
-	: ColumnType<T, T | undefined, T>;
+  ? ColumnType<S, I | undefined, U>
+  : ColumnType<T, T | undefined, T>;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Users {
-	createdAt: Generated<Timestamp>;
-	email: string;
-	firstName: string | null;
-	id: Generated<string>;
-	isBanned: Generated<boolean>;
-	isVerified: Generated<boolean>;
-	lastName: string | null;
-	password: string;
-	role: Generated<UserRole>;
-	updatedAt: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  email: string | null;
+  facebookId: string | null;
+  googleId: string | null;
+  id: Generated<string>;
+  isBanned: Generated<boolean>;
+  isVerified: Generated<boolean>;
+  password: string | null;
+  role: Generated<UserRole>;
+  updatedAt: Generated<Timestamp>;
+  vkId: string | null;
 }
 
 export interface DB {
-	users: Users;
+  users: Users;
 }
