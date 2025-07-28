@@ -1,6 +1,6 @@
-import { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-import { UserRole } from "../../../types/db/db.js";
+import type { UserRole } from "../../../types/db/db.js";
 
 declare module "fastify" {
 	export interface FastifyRequest {
@@ -21,7 +21,7 @@ function hasPermission(
 }
 
 export default fp(
-	async function (fastify) {
+	async (fastify) => {
 		fastify.decorateRequest("hasPermission", hasPermission);
 	},
 	{

@@ -16,9 +16,11 @@ const schema = Type.Object({
 		clientUrl: Type.String(),
 		clientAccountVerificationPath: Type.String(),
 		clientResetPasswordPath: Type.String(),
-		sessionName: Type.String(),
+		sessionCookieName: Type.String(),
+		oauthStateCookieName: Type.String(),
 		sessionTTLMinutes: Type.Number({ minimum: 1440, maximum: 43800 }),
-		OAuth2sessionTTLMinutes: Type.Number({ minimum: 30, maximum: 60 }),
+		oauthSessionTTLMinutes: Type.Number({ minimum: 30, maximum: 60 }),
+		oauthStateTTlMinutes: Type.Number({ minimum: 1, maximum: 3 }),
 		verificationTokenTTLMinutes: Type.Number({
 			minimum: 60,
 			maximum: 1440,
@@ -36,6 +38,8 @@ const schema = Type.Object({
 	oauth: Type.Object({
 		googleClientId: Type.String(),
 		googleClientSecret: Type.String(),
+		facebookClientId: Type.String(),
+		facebookClientSecret: Type.String(),
 	}),
 	database: Type.Object({
 		name: Type.String(),
@@ -119,9 +123,11 @@ export function setupConfig(): Config {
 				process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
 			cookieSecret: process.env.APPLICATION_COOKIE_SECRET,
 			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
-			sessionName: process.env.SESSION_NAME,
+			sessionCookieName: process.env.SESSION_COOKIE_NAME,
+			oauthStateCookieName: process.env.OAUTH_STATE_COOKIE_NAME,
 			sessionTTLMinutes: process.env.SESSION_TTL_MINUTES,
-			OAuth2sessionTTLMinutes: process.env.OAUTH_SESSION_TTL_MINUTES,
+			oauthSessionTTLMinutes: process.env.OAUTH_SESSION_TTL_MINUTES,
+			oauthStateTTlMinutes: process.env.OAUTH_STATE_TTL_MINUTES,
 			resetPasswordTTLMinutes: process.env.RESET_PASSWORD_TTL_MINUTES,
 			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
 			fastifyCloseGraceDelay: process.env.FASTIFY_CLOSE_GRACE_DELAY,
@@ -129,6 +135,8 @@ export function setupConfig(): Config {
 		oauth: {
 			googleClientId: process.env.OAUTH_GOOGLE_CLIENT_ID,
 			googleClientSecret: process.env.OAUTH_GOOGLE_CLIENT_SECRET,
+			facebookClientId: process.env.OAUTH_FACEBOOK_CLIENT_ID,
+			facebookClientSecret: process.env.OAUTH_FACEBOOK_CLIENT_SECRET,
 		},
 		database: {
 			name: process.env.DATABASE_NAME,

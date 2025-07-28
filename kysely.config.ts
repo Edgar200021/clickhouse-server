@@ -1,7 +1,6 @@
 import { defineConfig, getKnexTimestampPrefix } from "kysely-ctl";
 import pg from "pg";
 
-console.log(process.env);
 export default defineConfig({
 	dialect: "pg",
 	dialectConfig: {

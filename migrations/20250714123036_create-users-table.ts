@@ -19,7 +19,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("updated_at", "timestamp", (col) =>
 			col.notNull().defaultTo("now()"),
 		)
-		.addColumn("email", "text", (col) => col.unique())
+		.addColumn("email", "text", (col) => col.unique().notNull())
 		.addColumn("password", "text")
 		.addColumn("role", sql`user_role`, (col) =>
 			col.notNull().defaultTo("regular"),
@@ -30,7 +30,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("is_banned", "boolean", (col) => col.notNull().defaultTo(false))
 		.addColumn("google_id", "text", (col) => col.unique())
 		.addColumn("facebook_id", "text", (col) => col.unique())
-		.addColumn("vk_id", "text", (col) => col.unique())
 		.execute();
 }
 

@@ -1,25 +1,33 @@
-import {
+import { randomBytes, randomUUID } from "node:crypto";
+import type {
 	FastifyBaseLogger,
 	FastifyInstance,
 	FastifyReply,
 	FastifyRequest,
 } from "fastify";
-import { SignUpRequest } from "../schemas/auth/sign-up.schema.js";
-import { randomBytes, randomUUID } from "crypto";
+import { type ReferenceExpression, sql } from "kysely";
+import {
+	OAauthSessionPrefix,
+	OAuthRedirectPathSeperator,
+} from "../const/cookie.js";
 import {
 	ResetPasswordPrefix,
 	SessionPrefix,
 	VerificationPrefix,
 } from "../const/redis.js";
-import { VerifyAccountRequest } from "../schemas/auth/verify-account.schema.js";
+import type { FrogotPasswordRequest } from "../schemas/auth/forgot-password.schema.js";
+import type {
+	GenOAuthRedirectUrlQuery,
+	OAuthRequqestQuery,
+} from "../schemas/auth/oauth.schema.js";
+import type { ResetPasswordRequest } from "../schemas/auth/reset-password.schema.js";
+import type { SignInRequest } from "../schemas/auth/sign-in.schema.js";
+import type { SignUpRequest } from "../schemas/auth/sign-up.schema.js";
+import type { VerifyAccountRequest } from "../schemas/auth/verify-account.schema.js";
+import type { DB } from "../types/db/db.js";
+import type { User } from "../types/db/user.js";
+import type { OAuth2Provider } from "../types/oauth2.js";
 import { assertValidUser } from "../utils/user.utils.js";
-import { SignInRequest } from "../schemas/auth/sign-in.schema.js";
-import { User } from "../types/db/user.js";
-import { FrogotPasswordRequest } from "../schemas/auth/forgot-password.schema.js";
-import { ResetPasswordRequest } from "../schemas/auth/reset-password.schema.js";
-import { sql } from "kysely";
-import { OAuthRequqestQuery } from "../schemas/auth/oauth.schema.js";
-import { OAauthSessionPrefix } from "../const/session.js";
 
 export function createAuthService(instance: FastifyInstance) {
 	const {
@@ -52,6 +60,7 @@ export function createAuthService(instance: FastifyInstance) {
 			.values({
 				email,
 				password: hashed,
+				createdAt: sql`NOW()`,
 			})
 			.returning("id")
 			.executeTakeFirstOrThrow();
@@ -110,6 +119,7 @@ export function createAuthService(instance: FastifyInstance) {
 			.updateTable("users")
 			.set({
 				isVerified: true,
+				updatedAt: sql`NOW()`,
 			})
 			.where("id", "=", userID)
 			.execute();
@@ -163,9 +173,9 @@ export function createAuthService(instance: FastifyInstance) {
 			redis.setex(
 				`${ResetPasswordPrefix}${token}`,
 				60 * config.application.resetPasswordTTLMinutes,
-				user!.email!,
+				user!.email,
 			),
-			emailManager.sendResetPasswordEmail(user!.email!, token, (err) => {
+			emailManager.sendResetPasswordEmail(user!.email, token, (err) => {
 				log.error({ err }, "Failed to send reset password email");
 			}),
 		]);
@@ -204,7 +214,7 @@ export function createAuthService(instance: FastifyInstance) {
 	}
 
 	async function logout(req: FastifyRequest) {
-		const session = req.cookies[config.application.sessionName];
+		const session = req.cookies[config.application.sessionCookieName];
 
 		if (!session) {
 			req.log.info("Logout failed: session not found");
@@ -222,40 +232,79 @@ export function createAuthService(instance: FastifyInstance) {
 		await redis.del(`${SessionPrefix}${value ?? unsigned.value}`);
 	}
 
-	function googleSignInUrl(req: FastifyRequest): string {
-		const redirectUri = generateRedirectUri(req);
-		const url = oAuth2Manager.generateGoogleRedirectUrl(redirectUri);
+	function oauth2SignInUrl(
+		req: FastifyRequest,
+		query: GenOAuthRedirectUrlQuery,
+		provider: OAuth2Provider,
+	) {
+		const redirectUri = generateRedirectUri(req, provider);
+		const safeFrom = query.from ? encodeURIComponent(query.from) : "";
 
-		return url;
+		const uuid = randomUUID();
+
+		const url = oAuth2Manager.generateRedirectUrl(
+			redirectUri,
+			provider,
+			query.from ? `${uuid}${OAuthRedirectPathSeperator}${safeFrom}` : uuid,
+		);
+
+		return { url, cookieState: uuid };
 	}
 
-	async function googleSignIn(
+	async function oauthSignIn(
 		data: OAuthRequqestQuery,
 		req: FastifyRequest,
 		reply: FastifyReply,
+		provider: OAuth2Provider,
 	) {
-		const { code } = data;
-		const redirectUri = generateRedirectUri(req);
+		const { code, state } = data;
+		const [uuidPart, fromPart] = state.split(OAuthRedirectPathSeperator);
+		const fromDecoded = fromPart ? decodeURIComponent(fromPart) : "";
 
-		const googleUser = await oAuth2Manager.getUserInfo(
+		const cookieState = req.cookies[config.oauth.stateName];
+		if (!cookieState) {
+			req.log.info("OAuth failed: state not found in cookie");
+			return reply.badRequest("Invalid state");
+		}
+
+		const unsigned = req.unsignCookie(cookieState);
+		if (!unsigned.valid || unsigned.value !== uuidPart) {
+			req.log.info("OAuth failed: invalid state");
+			return reply.badRequest("Invalid state");
+		}
+
+		const redirectUri = generateRedirectUri(req, provider);
+
+		const oauthUser = await oAuth2Manager.getUserInfo(
 			redirectUri,
 			code,
+			provider,
 			(err) => {
-				req.log.error({ err }, "Failed to authorize with google:");
+				req.log.error({ err }, "OAuth failed:");
 			},
 		);
 
-		if (!googleUser.verified_email) {
+		if ("verified_email" in oauthUser && !oauthUser.verified_email) {
 			return reply.redirect(`${config.application.clientUrl}`);
 		}
 
+		const oauthColumn = oauthProviderToColumn(provider);
+		const redirectUrl = `${config.application.clientUrl}${fromDecoded?.startsWith("/") ? fromDecoded : "/"}`;
+
 		const dbUser = await kysely
 			.selectFrom("users")
-			.select(["googleId", "email", "isBanned", "isVerified", "id"])
+			.select([
+				"googleId",
+				"facebookId",
+				"email",
+				"isBanned",
+				"isVerified",
+				"id",
+			])
 			.where((eb) =>
 				eb.or([
-					eb("googleId", "=", googleUser.id),
-					eb("email", "=", googleUser.email),
+					eb(oauthColumn, "=", oauthUser.id),
+					eb("email", "=", oauthUser.email),
 				]),
 			)
 			.executeTakeFirst();
@@ -264,36 +313,39 @@ export function createAuthService(instance: FastifyInstance) {
 			const newUser = await kysely
 				.insertInto("users")
 				.values({
-					email: googleUser.email,
-					googleId: googleUser.id,
+					email: oauthUser.email,
+					[oauthColumn]: oauthUser.id,
 					isVerified: true,
+					createdAt: sql`NOW()`,
 				})
 				.returning("id")
 				.executeTakeFirstOrThrow();
 
-			const uuid = await generateSession(newUser, "regular");
+			const uuid = await generateSession(newUser, "oauth");
 
 			return reply
 				.cookie(
-					config.application.sessionName,
+					config.application.sessionCookieName,
 					`${OAauthSessionPrefix}${uuid}`,
 					{
-						maxAge: config.application.OAuth2sessionTTLMinutes * 60,
+						maxAge: config.application.oauthSessionTTLMinutes * 60,
 					},
 				)
-				.redirect(`${config.application.clientUrl}`);
+				.redirect(redirectUrl);
 		}
 
 		assertValidUser(dbUser, req.log, httpErrors, {
-			prefix: "Failed to authorize with google:",
+			prefix: "Failed to authorize with oauth:",
 			checkConditions: ["banned", "notVerified"],
 		});
 
-		if (!dbUser.googleId) {
+		if (!dbUser[oauthColumn]) {
 			await kysely
 				.updateTable("users")
 				.set({
-					googleId: googleUser.id,
+					[oauthColumn]: oauthUser.id,
+					isVerified: true,
+					updatedAt: sql`NOW()`,
 				})
 				.execute();
 		}
@@ -301,14 +353,14 @@ export function createAuthService(instance: FastifyInstance) {
 		const uuid = await generateSession(dbUser, "oauth");
 
 		return reply
-			.cookie(config.application.sessionName, `${OAauthSessionPrefix}${uuid}`, {
-				maxAge: config.application.OAuth2sessionTTLMinutes * 60,
-			})
-			.redirect(`${config.application.clientUrl}`);
-	}
-
-	function generateRedirectUri(req: FastifyRequest) {
-		return `${req.protocol}://${req.host}/api/v1/auth/google/callback`;
+			.cookie(
+				config.application.sessionCookieName,
+				`${OAauthSessionPrefix}${uuid}`,
+				{
+					maxAge: config.application.oauthSessionTTLMinutes * 60,
+				},
+			)
+			.redirect(redirectUrl);
 	}
 
 	async function generateSession(
@@ -322,11 +374,25 @@ export function createAuthService(instance: FastifyInstance) {
 			60 *
 				(type === "regular"
 					? config.application.sessionTTLMinutes
-					: config.application.OAuth2sessionTTLMinutes),
+					: config.application.oauthSessionTTLMinutes),
 			user.id,
 		);
 
 		return uuid;
+	}
+
+	function generateRedirectUri(req: FastifyRequest, type: OAuth2Provider) {
+		return `${req.protocol}://${req.host}/api/v1/auth/${type}/callback`;
+	}
+
+	function oauthProviderToColumn(
+		provider: OAuth2Provider,
+	): Extract<ReferenceExpression<DB, "users">, "googleId" | "facebookId"> {
+		if (provider === "google") return "googleId";
+		if (provider === "facebook") return "facebookId";
+
+		const x: never = provider;
+		return x;
 	}
 
 	return {
@@ -336,7 +402,7 @@ export function createAuthService(instance: FastifyInstance) {
 		forgotPassword,
 		resetPassword,
 		logout,
-		googleSignInUrl,
-		googleSignIn,
+		oauth2SignInUrl,
+		oauthSignIn,
 	};
 }

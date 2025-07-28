@@ -1,18 +1,15 @@
-import { randomBytes, randomUUID } from "node:crypto";
 import {
 	type FastifyPluginAsyncTypebox,
 	Type,
 } from "@fastify/type-provider-typebox";
-import { sql } from "kysely";
-import {
-	ResetPasswordPrefix,
-	SessionPrefix,
-	VerificationPrefix,
-} from "../const/redis.js";
 import {
 	ForgotPasswordRequestSchema,
 	ForgotPasswordResponseSchema,
 } from "../schemas/auth/forgot-password.schema.js";
+import {
+	GenOAuthRedirectUrlQuerySchema,
+	OAuthRequestQuerySchema,
+} from "../schemas/auth/oauth.schema.js";
 import {
 	ResetPasswordRequestSchema,
 	ResetPasswordResponseSchema,
@@ -34,7 +31,6 @@ import {
 	SuccessResponseSchema,
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
-import { OAuthRequestQuerySchema } from "../schemas/auth/oauth.schema.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 	const { config, authService } = fastify;
@@ -93,7 +89,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		},
 	);
 
-	fastify.post(
+	fastify.get(
 		"/auth/google",
 		{
 			config: {
@@ -102,10 +98,22 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					max: config.rateLimit.oauthSignIn,
 				},
 			},
+			schema: {
+				querystring: GenOAuthRedirectUrlQuerySchema,
+			},
 		},
 		async (req, reply) => {
-			const url = authService.googleSignInUrl(req);
-			reply.redirect(url);
+			const { url, cookieState } = authService.oauth2SignInUrl(
+				req,
+				req.query,
+				"google",
+			);
+
+			reply
+				.setCookie(config.application.oauthStateCookieName, cookieState, {
+					maxAge: 60 * config.application.oauthStateTTlMinutes,
+				})
+				.redirect(url);
 		},
 	);
 
@@ -123,7 +131,52 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			await authService.googleSignIn(req.query, req, reply);
+			await authService.oauthSignIn(req.query, req, reply, "google");
+		},
+	);
+
+	fastify.get(
+		"/auth/facebook",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.oauthSignIn,
+				},
+			},
+			schema: {
+				querystring: GenOAuthRedirectUrlQuerySchema,
+			},
+		},
+		async (req, reply) => {
+			const { url, cookieState } = authService.oauth2SignInUrl(
+				req,
+				req.query,
+				"facebook",
+			);
+			reply
+				.setCookie(config.application.oauthStateCookieName, cookieState, {
+					maxAge: 60 * config.application.oauthStateTTlMinutes,
+				})
+				.redirect(url);
+		},
+	);
+
+	fastify.get(
+		"/auth/facebook/callback",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.oauthSignIn,
+				},
+			},
+			schema: {
+				querystring: OAuthRequestQuerySchema,
+			},
+		},
+		async (req, reply) => {
+			await authService.oauthSignIn(req.query, req, reply, "facebook");
 		},
 	);
 
@@ -150,7 +203,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			reply
 				.status(200)
-				.cookie(config.application.sessionName, uuid, {
+				.cookie(config.application.sessionCookieName, uuid, {
 					maxAge: config.application.sessionTTLMinutes * 60,
 				})
 				.send({
@@ -237,7 +290,10 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		async (req, reply) => {
 			await authService.logout(req);
 
-			reply.status(200).clearCookie(config.application.sessionName).send();
+			reply
+				.status(200)
+				.clearCookie(config.application.sessionCookieName)
+				.send();
 		},
 	);
 };

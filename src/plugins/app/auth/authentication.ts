@@ -1,13 +1,17 @@
-import fastify, {
+import type {
 	FastifyInstance,
 	FastifyReply,
 	FastifyRequest,
+	RawRequestDefaultExpression,
+	RawServerDefault,
+	RouteGenericInterface,
 } from "fastify";
 import fp from "fastify-plugin";
+import { OAauthSessionPrefix } from "../../../const/cookie.js";
 import { SessionPrefix } from "../../../const/redis.js";
-import { User } from "../../../types/db/user.js";
+import type { GenOAuthRedirectUrlQuery } from "../../../schemas/auth/oauth.schema.js";
+import type { User } from "../../../types/db/user.js";
 import { assertValidUser } from "../../../utils/user.utils.js";
-import { OAauthSessionPrefix } from "../../../const/session.js";
 
 declare module "fastify" {
 	export interface FastifyRequest {
@@ -18,7 +22,7 @@ declare module "fastify" {
 
 function authenticate(instance: FastifyInstance) {
 	return async function (this: FastifyRequest, reply: FastifyReply) {
-		const session = this.cookies[instance.config.application.sessionName];
+		const session = this.cookies[instance.config.application.sessionCookieName];
 
 		if (!session) {
 			this.log.info("Authentication failed: session not found");
@@ -40,7 +44,7 @@ function authenticate(instance: FastifyInstance) {
 				: await instance.redis.getex(
 						`${SessionPrefix}${value}`,
 						"EX",
-						60 * instance.config.application.OAuth2sessionTTLMinutes,
+						60 * instance.config.application.oauthSessionTTLMinutes,
 					)
 		)
 			?.split(SessionPrefix)
@@ -70,9 +74,13 @@ function authenticate(instance: FastifyInstance) {
 		});
 
 		if (isOauth) {
-			reply.setCookie(instance.config.application.sessionName, unsigned.value, {
-				maxAge: instance.config.application.OAuth2sessionTTLMinutes * 60,
-			});
+			reply.setCookie(
+				instance.config.application.sessionCookieName,
+				unsigned.value,
+				{
+					maxAge: instance.config.application.oauthSessionTTLMinutes * 60,
+				},
+			);
 		}
 
 		this.user = user;
@@ -80,7 +88,7 @@ function authenticate(instance: FastifyInstance) {
 }
 
 export default fp(
-	async function (fastify) {
+	async (fastify) => {
 		fastify.decorateRequest("user", null);
 		fastify.addHook("onRequest", async (req) => {
 			req.user = null;

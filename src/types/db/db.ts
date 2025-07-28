@@ -18,7 +18,7 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Users {
   createdAt: Generated<Timestamp>;
-  email: string | null;
+  email: string;
   facebookId: string | null;
   googleId: string | null;
   id: Generated<string>;
@@ -27,7 +27,6 @@ export interface Users {
   password: string | null;
   role: Generated<UserRole>;
   updatedAt: Generated<Timestamp>;
-  vkId: string | null;
 }
 
 export interface DB {

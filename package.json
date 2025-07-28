@@ -55,6 +55,7 @@
 		"@fastify/swagger-ui": "^5.2.3",
 		"@fastify/type-provider-typebox": "^5.1.0",
 		"@sinclair/typebox": "^0.34.37",
+		"@vkid/sdk": "^2.6.0",
 		"ajv": "^8.17.1",
 		"ajv-formats": "^3.0.1",
 		"close-with-grace": "^2.2.0",
