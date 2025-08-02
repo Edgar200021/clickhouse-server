@@ -4,7 +4,7 @@ import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
 } from "../../const/type-box.js";
-import { UserSchema } from "../user.schema.js";
+import { UserSchema } from "../user/user.schema.js";
 
 export const SignInRequestSchema = Type.Object({
 	email: Type.String({ format: "email" }),

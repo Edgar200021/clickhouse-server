@@ -1,17 +1,20 @@
-import { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import {
 	ErrorResponseSchema,
 	SuccessResponseSchema,
 } from "../schemas/base.schema.js";
-import { UserSchema } from "../schemas/user.schema.js";
+import { UserSchema } from "../schemas/user/user.schema.js";
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
-	const { kysely, httpErrors, emailManager, passwordManager, redis, config } =
-		fastify;
-
 	fastify.get(
 		"/user",
 		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: fastify.config.rateLimit.getMeLimit,
+				},
+			},
 			preHandler: async (req, reply) => {
 				await req.authenticate(reply);
 			},

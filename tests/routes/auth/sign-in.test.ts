@@ -21,7 +21,7 @@ describe("Authentication", () => {
 		await testApp.close();
 	});
 
-	describe("Sign in", () => {
+	describe("Sign In", () => {
 		it("Should return 201 status code when request is successful", async () => {
 			await testApp.createAndVerify({ body: user });
 			const signInRes = await testApp.signIn({ body: user });
@@ -34,7 +34,8 @@ describe("Authentication", () => {
 			const signInRes = await testApp.signIn({ body: user });
 
 			const cookie = signInRes.cookies.find(
-				(cookie) => cookie.name === testApp.app.config.application.sessionName,
+				(cookie) =>
+					cookie.name === testApp.app.config.application.sessionCookieName,
 			);
 
 			expect(cookie).toBeDefined();

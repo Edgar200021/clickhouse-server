@@ -1,15 +1,7 @@
-import type {
-	FastifyInstance,
-	FastifyReply,
-	FastifyRequest,
-	RawRequestDefaultExpression,
-	RawServerDefault,
-	RouteGenericInterface,
-} from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { OAauthSessionPrefix } from "../../../const/cookie.js";
 import { SessionPrefix } from "../../../const/redis.js";
-import type { GenOAuthRedirectUrlQuery } from "../../../schemas/auth/oauth.schema.js";
 import type { User } from "../../../types/db/user.js";
 import { assertValidUser } from "../../../utils/user.utils.js";
 

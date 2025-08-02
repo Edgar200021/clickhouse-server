@@ -40,7 +40,7 @@ function createoAuth2Manager(fastify: FastifyInstance) {
 		code: string,
 		provider: T,
 		onError?: (err: unknown) => void,
-	): Promise<T extends "s" ? GoogleOAuth2User : FacebookOAuth2User> {
+	): Promise<T extends "google" ? GoogleOAuth2User : FacebookOAuth2User> {
 		if (provider === "google")
 			return getGoogleUserInfo(redirectUri, code, onError);
 		if (provider === "facebook")

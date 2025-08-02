@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
-import { UserRole } from "../types/db/db.js";
-import { NullableSchema } from "./base.schema.js";
+import { UserRole } from "../../types/db/db.js";
+import { NullableSchema } from "../base.schema.js";
 
 export const UserSchema = Type.Object({
 	id: Type.String({ format: "uuid" }),

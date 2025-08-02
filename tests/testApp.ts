@@ -22,6 +22,8 @@ interface TestApp {
 	forgotPassword: typeof forgotPassword;
 	resetPassword: typeof resetPassword;
 	logout: typeof logout;
+	getMe: typeof getMe;
+	getCategories: typeof getCategories;
 }
 
 async function signUp(
@@ -88,7 +90,6 @@ async function withSignIn(
 ): Promise<LightMyRequestResponse> {
 	const res = await this.createAndVerify(signInBody);
 	if (res.statusCode !== 200) {
-		this.app.log.info(res);
 		throw new Error("Failed to create and verify account");
 	}
 
@@ -98,7 +99,7 @@ async function withSignIn(
 	}
 
 	const cookie = signInRes.cookies.find(
-		(cookie) => cookie.name === this.app.config.application.sessionName,
+		(cookie) => cookie.name === this.app.config.application.sessionCookieName,
 	);
 
 	if (!cookie) {
@@ -157,6 +158,28 @@ async function logout(
 	});
 }
 
+async function getMe(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: "/api/v1/user",
+		...options,
+	});
+}
+
+async function getCategories(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: "/api/v1/categories",
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -166,6 +189,7 @@ export async function buildTestApp(): Promise<TestApp> {
 	config.rateLimit.forgotPasswordLimit = 10;
 	config.rateLimit.resetPasswordLimit = 10;
 	config.rateLimit.accountVerificationLimit = 10;
+	config.rateLimit.getMeLimit = 5;
 	config.logger.logToFile = "false";
 
 	await dbCreate(config.database);
@@ -190,5 +214,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		forgotPassword,
 		resetPassword,
 		logout,
+		getMe,
+		getCategories,
 	};
 }

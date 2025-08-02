@@ -35,7 +35,7 @@ describe("Authentication", () => {
 			);
 
 			const session = res.cookies.find(
-				(c) => c.name === testApp.app.config.application.sessionName,
+				(c) => c.name === testApp.app.config.application.sessionCookieName,
 			);
 
 			expect(session).toBeDefined();

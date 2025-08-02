@@ -65,8 +65,6 @@ export function createAuthService(instance: FastifyInstance) {
 			.returning("id")
 			.executeTakeFirstOrThrow();
 
-		log.info({ userID: id }, "User Created");
-
 		const token = randomBytes(16).toString("hex");
 
 		await Promise.all([
@@ -79,8 +77,6 @@ export function createAuthService(instance: FastifyInstance) {
 				id,
 			),
 		]);
-
-		log.info({ email }, "Verification Email Sent");
 	}
 
 	async function verifyAccount(
@@ -123,8 +119,6 @@ export function createAuthService(instance: FastifyInstance) {
 			})
 			.where("id", "=", userID)
 			.execute();
-
-		log.info({ userID }, "User verified");
 	}
 
 	async function signIn(data: SignInRequest, log: FastifyBaseLogger) {
@@ -136,7 +130,8 @@ export function createAuthService(instance: FastifyInstance) {
 
 		if (
 			!user ||
-			!(await passwordManager.compare(data.password, user.password ?? ""))
+			!user.password ||
+			!(await passwordManager.compare(data.password, user.password))
 		) {
 			log.info("Invalid credentials");
 			throw httpErrors.badRequest("Invalid credentials");
@@ -261,7 +256,7 @@ export function createAuthService(instance: FastifyInstance) {
 		const [uuidPart, fromPart] = state.split(OAuthRedirectPathSeperator);
 		const fromDecoded = fromPart ? decodeURIComponent(fromPart) : "";
 
-		const cookieState = req.cookies[config.oauth.stateName];
+		const cookieState = req.cookies[config.application.oauthStateCookieName];
 		if (!cookieState) {
 			req.log.info("OAuth failed: state not found in cookie");
 			return reply.badRequest("Invalid state");
@@ -331,6 +326,7 @@ export function createAuthService(instance: FastifyInstance) {
 						maxAge: config.application.oauthSessionTTLMinutes * 60,
 					},
 				)
+				.clearCookie(config.application.oauthStateCookieName)
 				.redirect(redirectUrl);
 		}
 
@@ -360,6 +356,7 @@ export function createAuthService(instance: FastifyInstance) {
 					maxAge: config.application.oauthSessionTTLMinutes * 60,
 				},
 			)
+			.clearCookie(config.application.oauthStateCookieName)
 			.redirect(redirectUrl);
 	}
 

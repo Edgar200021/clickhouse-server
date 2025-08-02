@@ -108,6 +108,12 @@ const schema = Type.Object({
 		oauthSignIn: Type.Optional(
 			Type.Number({ minimum: 1, maximum: 3, default: 3 }),
 		),
+		getMeLimit: Type.Optional(
+			Type.Number({ minimum: 20, maximum: 100, default: 100 }),
+		),
+		getCategoriesLimit: Type.Optional(
+			Type.Number({ minimum: 20, maximum: 100, default: 100 }),
+		),
 	}),
 });
 
