@@ -5,6 +5,11 @@ import fp from "fastify-plugin";
 export default fp(async (instance) => {
 	await Promise.all([
 		instance.register(formbody),
-		instance.register(multipart),
+		instance.register(multipart, {
+			attachFieldsToBody: true,
+			limits: {
+				fileSize: 10_000_000,
+			},
+		}),
 	]);
 });

@@ -13,6 +13,7 @@ declare module "fastify" {
 export const autoConfig = (fastify: FastifyInstance): PoolConfig => {
 	const { name, host, port, user, password, ssl, poolMin, poolMax } =
 		fastify.config.database;
+
 	return {
 		database: name,
 		host,

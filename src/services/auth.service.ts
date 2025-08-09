@@ -15,7 +15,7 @@ import {
 	SessionPrefix,
 	VerificationPrefix,
 } from "../const/redis.js";
-import type { FrogotPasswordRequest } from "../schemas/auth/forgot-password.schema.js";
+import type { ForgotPasswordRequest } from "../schemas/auth/forgot-password.schema.js";
 import type {
 	GenOAuthRedirectUrlQuery,
 	OAuthRequqestQuery,
@@ -148,7 +148,7 @@ export function createAuthService(instance: FastifyInstance) {
 	}
 
 	async function forgotPassword(
-		data: FrogotPasswordRequest,
+		data: ForgotPasswordRequest,
 		log: FastifyBaseLogger,
 	) {
 		const user = await kysely

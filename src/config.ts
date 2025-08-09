@@ -1,5 +1,4 @@
-import { type Static, Type } from "@sinclair/typebox";
-import { Value } from "@sinclair/typebox/value";
+import { z } from "zod";
 
 declare module "fastify" {
 	interface FastifyInstance {
@@ -7,118 +6,103 @@ declare module "fastify" {
 	}
 }
 
-export type Config = Static<typeof schema>;
-
-const schema = Type.Object({
-	application: Type.Object({
-		host: Type.String(),
-		port: Type.Number({ minimum: 1, maximum: 65535 }),
-		clientUrl: Type.String(),
-		clientAccountVerificationPath: Type.String(),
-		clientResetPasswordPath: Type.String(),
-		sessionCookieName: Type.String(),
-		oauthStateCookieName: Type.String(),
-		sessionTTLMinutes: Type.Number({ minimum: 1440, maximum: 43800 }),
-		oauthSessionTTLMinutes: Type.Number({ minimum: 30, maximum: 60 }),
-		oauthStateTTlMinutes: Type.Number({ minimum: 1, maximum: 3 }),
-		verificationTokenTTLMinutes: Type.Number({
-			minimum: 60,
-			maximum: 1440,
-		}),
-		resetPasswordTTLMinutes: Type.Number({
-			minimum: 5,
-			maximum: 15,
-		}),
-		cookieSecret: Type.String({ minLength: 20 }),
-		cookieSecure: Type.Union([Type.Literal("false"), Type.Literal("true")]),
-		fastifyCloseGraceDelay: Type.Optional(
-			Type.Number({ minimum: 500, maximum: 5000, default: 500 }),
-		),
+export const configSchema = z.object({
+	application: z.object({
+		host: z.string(),
+		port: z.coerce.number().min(1).max(65535),
+		clientUrl: z.string(),
+		clientAccountVerificationPath: z.string(),
+		clientResetPasswordPath: z.string(),
+		sessionCookieName: z.string(),
+		oauthStateCookieName: z.string(),
+		sessionTTLMinutes: z.coerce.number().min(1440).max(43800),
+		oauthSessionTTLMinutes: z.coerce.number().min(30).max(60),
+		oauthStateTTlMinutes: z.coerce.number().min(1).max(3),
+		verificationTokenTTLMinutes: z.coerce.number().min(60).max(1440),
+		resetPasswordTTLMinutes: z.coerce.number().min(5).max(15),
+		cookieSecret: z.string().min(20),
+		cookieSecure: z
+			.enum(["true", "false"])
+			.transform((value) => value === "true"),
+		fastifyCloseGraceDelay: z.coerce
+			.number()
+			.min(500)
+			.max(5000)
+			.default(500)
+			.optional(),
 	}),
-	oauth: Type.Object({
-		googleClientId: Type.String(),
-		googleClientSecret: Type.String(),
-		facebookClientId: Type.String(),
-		facebookClientSecret: Type.String(),
+	oauth: z.object({
+		googleClientId: z.string(),
+		googleClientSecret: z.string(),
+		facebookClientId: z.string(),
+		facebookClientSecret: z.string(),
 	}),
-	database: Type.Object({
-		name: Type.String(),
-		host: Type.String(),
-		port: Type.Number({ minimum: 1, maximum: 65535 }),
-		user: Type.String(),
-		password: Type.String(),
-		ssl: Type.Boolean(),
-		poolMin: Type.Optional(Type.Number({ maximum: 5, minimum: 1, default: 2 })),
-		poolMax: Type.Optional(
-			Type.Number({ maximum: 10, minimum: 1, default: 10 }),
-		),
+	database: z.object({
+		name: z.string(),
+		host: z.string(),
+		port: z.coerce.number().min(1).max(65535),
+		user: z.string(),
+		password: z.string(),
+		ssl: z.enum(["true", "false"]).transform((value) => value === "true"),
+		poolMin: z.coerce.number().min(1).max(5).default(2).optional(),
+		poolMax: z.coerce.number().min(1).max(10).default(10).optional(),
 	}),
-	redis: Type.Object({
-		host: Type.String(),
-		port: Type.Number(),
-		password: Type.String(),
-		db: Type.Optional(Type.Number({ minimum: 0 })),
+	redis: z.object({
+		host: z.string(),
+		port: z.coerce.number(),
+		password: z.string(),
+		db: z.coerce.number().min(0).optional(),
 	}),
-	logger: Type.Object({
-		logLevel: Type.Optional(
-			Type.Union([
-				Type.Literal("info"),
-				Type.Literal("warn"),
-				Type.Literal("error"),
-				Type.Literal("fatal"),
-			]),
-		),
-		logToFile: Type.Union([Type.Literal("true"), Type.Literal("false")]),
-		logInfoPath: Type.Optional(Type.String()),
-		logWarnPath: Type.Optional(Type.String()),
-		logErrorPath: Type.Optional(Type.String()),
+	logger: z.object({
+		logLevel: z.enum(["info", "warn", "error", "fatal"]).optional(),
+		logToFile: z.enum(["true", "false"]).transform((value) => value === "true"),
+		logInfoPath: z.string().optional(),
+		logWarnPath: z.string().optional(),
+		logErrorPath: z.string().optional(),
 	}),
-	mailer: Type.Object({
-		host: Type.String(),
-		port: Type.Number(),
-		secure: Type.Boolean(),
-		user: Type.String(),
-		password: Type.String(),
+	mailer: z.object({
+		host: z.string(),
+		port: z.coerce.number(),
+		secure: z.enum(["true", "false"]).transform((value) => value === "true"),
+		user: z.string(),
+		password: z.string(),
 	}),
-	rateLimit: Type.Object({
-		globalLimit: Type.Optional(
-			Type.Number({ minimum: 10, maximum: 100, default: 100 }),
-		),
-		notFoundLimit: Type.Optional(
-			Type.Number({ minimum: 3, maximum: 5, default: 5 }),
-		),
-		signUpLimit: Type.Optional(
-			Type.Number({ minimum: 5, maximum: 8, default: 5 }),
-		),
-		signInLimit: Type.Optional(
-			Type.Number({ minimum: 5, maximum: 15, default: 10 }),
-		),
-		accountVerificationLimit: Type.Optional(
-			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
-		),
-		forgotPasswordLimit: Type.Optional(
-			Type.Number({ minimum: 3, maximum: 5, default: 3 }),
-		),
-		resetPasswordLimit: Type.Optional(
-			Type.Number({ minimum: 1, maximum: 1, default: 1 }),
-		),
-		logoutLimit: Type.Optional(
-			Type.Number({ minimum: 1, maximum: 3, default: 3 }),
-		),
-		oauthSignIn: Type.Optional(
-			Type.Number({ minimum: 1, maximum: 3, default: 3 }),
-		),
-		getMeLimit: Type.Optional(
-			Type.Number({ minimum: 20, maximum: 100, default: 100 }),
-		),
-		getCategoriesLimit: Type.Optional(
-			Type.Number({ minimum: 20, maximum: 100, default: 100 }),
-		),
+	cloudinary: z.object({
+		cloudName: z.string(),
+		apiKey: z.string(),
+		apiSecret: z.string(),
+		secure: z.enum(["true", "false"]).transform((value) => value === "true"),
+		uploadFolder: z.string(),
+	}),
+	rateLimit: z.object({
+		globalLimit: z.coerce.number().min(10).max(100).default(100).optional(),
+		notFoundLimit: z.coerce.number().min(3).max(5).default(5).optional(),
+		signUpLimit: z.coerce.number().min(5).max(8).default(5).optional(),
+		signInLimit: z.coerce.number().min(5).max(15).default(10).optional(),
+		accountVerificationLimit: z.coerce
+			.number()
+			.min(3)
+			.max(5)
+			.default(3)
+			.optional(),
+		forgotPasswordLimit: z.coerce.number().min(3).max(5).default(3).optional(),
+		resetPasswordLimit: z.coerce.number().min(1).max(1).default(1).optional(),
+		logoutLimit: z.coerce.number().min(1).max(3).default(3).optional(),
+		oauthSignIn: z.coerce.number().min(1).max(3).default(3).optional(),
+		getMeLimit: z.coerce.number().min(20).max(100).default(100).optional(),
+		getCategoriesLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
 	}),
 });
 
+export type Config = z.infer<typeof configSchema>;
+
 export function setupConfig(): Config {
-	const config = Value.Parse(schema, {
+	const config = configSchema.parse({
 		application: {
 			port: process.env.APPLICATION_PORT,
 			host: process.env.APPLICATION_HOST,
@@ -172,6 +156,13 @@ export function setupConfig(): Config {
 			secure: process.env.NODEMAILER_SECURE,
 			user: process.env.NODEMAILER_USER,
 			password: process.env.NODEMAILER_PASSWORD,
+		},
+		cloudinary: {
+			cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+			apiKey: process.env.CLOUDINARY_API_KEY,
+			apiSecret: process.env.CLOUDINARY_API_SECRET,
+			secure: process.env.CLOUDINARY_SECURE,
+			uploadFolder: process.env.CLOUDINARY_UPLOAD_FOLDER,
 		},
 		rateLimit: {
 			globalLimit: process.env.RATE_LIMIT_GLOBAL,

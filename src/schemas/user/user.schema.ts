@@ -1,12 +1,11 @@
-import { Type } from "@sinclair/typebox";
+import z from "zod";
 import { UserRole } from "../../types/db/db.js";
-import { NullableSchema } from "../base.schema.js";
 
-export const UserSchema = Type.Object({
-	id: Type.String({ format: "uuid" }),
-	createdAt: Type.String({ format: "date-time" }),
-	updatedAt: Type.String({ format: "date-time" }),
-	email: NullableSchema(Type.String({ format: "email" })),
-	isVerified: Type.Boolean(),
-	role: Type.Enum(UserRole),
+export const UserSchema = z.object({
+	id: z.uuid(),
+	createdAt: z.iso.datetime(),
+	updatedAt: z.iso.datetime(),
+	email: z.email().nullable(),
+	isVerified: z.boolean(),
+	role: z.enum(UserRole),
 });

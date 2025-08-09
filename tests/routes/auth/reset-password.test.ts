@@ -1,11 +1,11 @@
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
-import { buildTestApp } from "../../testApp.js";
 import { faker } from "@faker-js/faker";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ResetPasswordPrefix } from "../../../src/const/redis.js";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../../src/const/type-box.js";
-import { ResetPasswordPrefix } from "../../../src/const/redis.js";
+} from "../../../src/const/zod.js";
+import { buildTestApp } from "../../testApp.js";
 
 describe("Authentication", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;

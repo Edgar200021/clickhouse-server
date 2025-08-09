@@ -1,7 +1,5 @@
-import {
-	type FastifyPluginAsyncTypebox,
-	Type,
-} from "@fastify/type-provider-typebox";
+import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import z from "zod";
 import { SuccessResponseSchema } from "../schemas/base.schema.js";
 import { CategorySchema } from "../schemas/category/category.schema.js";
 
@@ -13,8 +11,9 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 		{
 			schema: {
 				response: {
-					200: SuccessResponseSchema(Type.Array(CategorySchema)),
+					200: SuccessResponseSchema(z.array(CategorySchema)),
 				},
+				tags: ["Categories"],
 			},
 		},
 		async (_, reply) => {

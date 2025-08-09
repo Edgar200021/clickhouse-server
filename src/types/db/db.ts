@@ -19,6 +19,8 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 export interface Category {
   createdAt: Generated<Timestamp>;
   id: Generated<number>;
+  imageId: string | null;
+  imageUrl: string | null;
   name: string;
   path: string;
   updatedAt: Generated<Timestamp>;

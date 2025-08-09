@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../../src/const/type-box.js";
+} from "../../../src/const/zod.js";
 import { buildTestApp } from "../../testApp.js";
 
 describe("User", () => {
@@ -29,6 +29,12 @@ describe("User", () => {
 			);
 
 			expect(getMeRes.statusCode).toBe(200);
+		});
+
+		it("Should return 401 status code when user is not authorized", async () => {
+			const getMeRes = await testApp.getMe();
+
+			expect(getMeRes.statusCode).toBe(401);
 		});
 
 		it("Should be rate limited", async () => {

@@ -1,37 +1,31 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fastifyAutoload from "@fastify/autoload";
-import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
-import { Ajv } from "ajv";
-import ajvFormats from "ajv-formats";
+import { ajvFilePlugin } from "@fastify/multipart";
 import Fastify from "fastify";
+import {
+	hasZodFastifySchemaValidationErrors,
+	isResponseSerializationError,
+	serializerCompiler,
+	validatorCompiler,
+	type ZodTypeProvider,
+} from "fastify-type-provider-zod";
 import type { Config } from "./config.js";
 import { setupLogger } from "./logger.js";
 
-declare module "fastify" {
-	interface FastifyInstance {
-		ajv: Ajv;
-	}
-}
-
 export async function buildApp(config: Config) {
-	const ajv = ajvFormats.default(
-		new Ajv({
-			removeAdditional: true,
-			coerceTypes: true,
-			allErrors: true,
-		}),
-	);
-
 	const app = Fastify({
 		logger: setupLogger(),
 		genReqId: () => randomUUID().toString(),
 		trustProxy: true,
-	})
-		.withTypeProvider<TypeBoxTypeProvider>()
-		.setValidatorCompiler(({ schema }) => ajv.compile(schema));
+		ajv: {
+			plugins: [ajvFilePlugin],
+		},
+	}).withTypeProvider<ZodTypeProvider>();
 
-	app.decorate("ajv", ajv);
+	app.setValidatorCompiler(validatorCompiler);
+	app.setSerializerCompiler(serializerCompiler);
+
 	app.decorate("config", config);
 
 	await app.register(fastifyAutoload, {
@@ -50,34 +44,32 @@ export async function buildApp(config: Config) {
 	});
 
 	app.setErrorHandler((err, req, reply) => {
-		if (err.validation) {
-			const errors = err.validation.reduce(
-				(acc: Record<string, string[]>, val) => {
-					if (!val.message) return acc;
-					if (val.keyword === "required") {
-						acc[val.params.missingProperty as string] = [val.message];
-						return acc;
-					}
-
-					const normalizedPath = val.instancePath.slice(1);
-					if (acc[normalizedPath]) {
-						acc[normalizedPath].push(val.message);
-						return acc;
-					}
-
-					acc[normalizedPath] = [val.message];
-					return acc;
-				},
-				{},
-			);
-
-			return reply.status(400).send({ status: "error", errors });
-		}
-
 		if (err.statusCode === 429) {
 			return reply.status(429).send({
 				status: "error",
 				error: "You hit the rate limit! Slow down please!",
+			});
+		}
+
+		if (hasZodFastifySchemaValidationErrors(err)) {
+			return reply.code(400).send({
+				status: "error",
+				errors: (
+					err.validation as { instancePath: string; message: string }[]
+				).reduce((acc: Record<string, string>, err) => {
+					if (!acc[err.instancePath]) {
+						acc[err.instancePath.slice(1)] = err.message;
+					}
+
+					return acc;
+				}, {}),
+			});
+		}
+
+		if (isResponseSerializationError(err)) {
+			return reply.code(500).send({
+				status: "error",
+				error: "Response doesn't match the schema",
 			});
 		}
 

@@ -2,11 +2,9 @@ import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import {
 	FacebookOAuth2AccessTokenSchema,
-	type FacebookOAuth2Token,
 	type FacebookOAuth2User,
 	FacebookOAuth2UserSchema,
 	GoogleOAuth2AccessTokenSchema,
-	type GoogleOAuth2Token,
 	type GoogleOAuth2User,
 	GoogleOAuth2UserSchema,
 } from "../../../schemas/auth/oauth.schema.js";
@@ -104,13 +102,11 @@ function createoAuth2Manager(fastify: FastifyInstance) {
 				}),
 			});
 
-			const data = await tokenRes.json();
-			if (
-				!fastify.ajv.validate<GoogleOAuth2Token>(
-					GoogleOAuth2AccessTokenSchema,
-					data,
-				)
-			) {
+			const { data, error } =
+				await GoogleOAuth2AccessTokenSchema.safeParseAsync(
+					await tokenRes.json(),
+				);
+			if (error) {
 				throw new Error("GoogleOauth2TokenSchema validation failed");
 			}
 
@@ -121,14 +117,10 @@ function createoAuth2Manager(fastify: FastifyInstance) {
 				},
 			);
 
-			const profileData = await profileRes.json();
+			const { error: userSchemaError, data: profileData } =
+				await GoogleOAuth2UserSchema.safeParseAsync(await profileRes.json());
 
-			if (
-				!fastify.ajv.validate<GoogleOAuth2User>(
-					GoogleOAuth2UserSchema,
-					profileData,
-				)
-			) {
+			if (userSchemaError) {
 				throw new Error("GoogleOauth2UserSchema validation failed");
 			}
 
@@ -157,14 +149,10 @@ function createoAuth2Manager(fastify: FastifyInstance) {
 			url.searchParams.set("redirect_uri", redirectUri);
 
 			const res = await fetch(url.toString());
-			const data = await res.json();
+			const { data, error } =
+				await FacebookOAuth2AccessTokenSchema.safeParseAsync(await res.json());
 
-			if (
-				!fastify.ajv.validate<FacebookOAuth2Token>(
-					FacebookOAuth2AccessTokenSchema,
-					data,
-				)
-			) {
+			if (error) {
 				throw new Error("FacebookOauth2TokenSchema validation failed");
 			}
 
@@ -179,14 +167,10 @@ function createoAuth2Manager(fastify: FastifyInstance) {
 			getUserUrl.searchParams.set("access_token", access_token);
 
 			const userRes = await fetch(getUserUrl.toString());
-			const user = await userRes.json();
+			const { error: userSchemaError, data: user } =
+				await FacebookOAuth2UserSchema.safeParseAsync(await userRes.json());
 
-			if (
-				!fastify.ajv.validate<FacebookOAuth2User>(
-					FacebookOAuth2UserSchema,
-					user,
-				)
-			) {
+			if (userSchemaError) {
 				throw new Error("FacebookOauth2UserSchema validation failed");
 			}
 

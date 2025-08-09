@@ -23,6 +23,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 					200: SuccessResponseSchema(UserSchema),
 					401: ErrorResponseSchema,
 				},
+				tags: ["User"],
 			},
 		},
 		async (req, reply) => {

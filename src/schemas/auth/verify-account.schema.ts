@@ -1,8 +1,8 @@
-import { type Static, Type } from "@sinclair/typebox";
+import z from "zod";
 
-export const VerifyAccountRequestSchema = Type.Object({
-	token: Type.String(),
+export const VerifyAccountRequestSchema = z.object({
+	token: z.string(),
 });
-export const VerifyAccountResponseSchema = Type.String();
+export const VerifyAccountResponseSchema = z.string();
 
-export type VerifyAccountRequest = Static<typeof VerifyAccountRequestSchema>;
+export type VerifyAccountRequest = z.Infer<typeof VerifyAccountRequestSchema>;

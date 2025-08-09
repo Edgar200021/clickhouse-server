@@ -1,16 +1,16 @@
-import { type Static, Type } from "@sinclair/typebox";
+import z from "zod";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../const/type-box.js";
+} from "../../const/zod.js";
 
-export const ResetPasswordRequestSchema = Type.Object({
-	token: Type.String(),
-	newPassword: Type.String({
-		minLength: SignUpPasswordMinLength,
-		maxLength: SignUpPasswordMaxLength,
-	}),
+export const ResetPasswordRequestSchema = z.object({
+	token: z.string(),
+	newPassword: z
+		.string()
+		.min(SignUpPasswordMinLength)
+		.max(SignUpPasswordMaxLength),
 });
-export const ResetPasswordResponseSchema = Type.String();
+export const ResetPasswordResponseSchema = z.string();
 
-export type ResetPasswordRequest = Static<typeof ResetPasswordRequestSchema>;
+export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;

@@ -1,48 +1,48 @@
-import { type Static, Type } from "@sinclair/typebox";
+import z from "zod";
 
-export const GenOAuthRedirectUrlQuerySchema = Type.Object({
-	from: Type.Optional(Type.String()),
+export const GenOAuthRedirectUrlQuerySchema = z.object({
+	from: z.string().optional(),
 });
-export const OAuthRequestQuerySchema = Type.Object({
-	code: Type.String(),
-	state: Type.String(),
-});
-
-export const GoogleOAuth2AccessTokenSchema = Type.Object({
-	access_token: Type.String(),
+export const OAuthRequestQuerySchema = z.object({
+	code: z.string(),
+	state: z.string(),
 });
 
-export const GoogleOAuth2UserSchema = Type.Object({
-	id: Type.String(),
-	email: Type.String({ format: "email" }),
-	verified_email: Type.Boolean(),
+export const GoogleOAuth2AccessTokenSchema = z.object({
+	access_token: z.string(),
 });
 
-export const FacebookOAuth2AccessTokenSchema = Type.Union([
-	Type.Object({
-		access_token: Type.String(),
+export const GoogleOAuth2UserSchema = z.object({
+	id: z.string(),
+	email: z.email(),
+	verified_email: z.boolean(),
+});
+
+export const FacebookOAuth2AccessTokenSchema = z.union([
+	z.object({
+		access_token: z.string(),
 	}),
-	Type.Object({
-		error: Type.Object({
-			message: Type.String(),
+	z.object({
+		error: z.object({
+			message: z.string(),
 		}),
 	}),
 ]);
 
-export const FacebookOAuth2UserSchema = Type.Object({
-	id: Type.String(),
-	email: Type.String({ format: "email" }),
+export const FacebookOAuth2UserSchema = z.object({
+	id: z.string(),
+	email: z.email(),
 });
 
-export type GenOAuthRedirectUrlQuery = Static<
+export type GenOAuthRedirectUrlQuery = z.Infer<
 	typeof GenOAuthRedirectUrlQuerySchema
 >;
-export type OAuthRequqestQuery = Static<typeof OAuthRequestQuerySchema>;
+export type OAuthRequqestQuery = z.Infer<typeof OAuthRequestQuerySchema>;
 
-export type GoogleOAuth2Token = Static<typeof GoogleOAuth2AccessTokenSchema>;
-export type GoogleOAuth2User = Static<typeof GoogleOAuth2UserSchema>;
+export type GoogleOAuth2Token = z.Infer<typeof GoogleOAuth2AccessTokenSchema>;
+export type GoogleOAuth2User = z.Infer<typeof GoogleOAuth2UserSchema>;
 
-export type FacebookOAuth2Token = Static<
+export type FacebookOAuth2Token = z.Infer<
 	typeof FacebookOAuth2AccessTokenSchema
 >;
-export type FacebookOAuth2User = Static<typeof FacebookOAuth2UserSchema>;
+export type FacebookOAuth2User = z.Infer<typeof FacebookOAuth2UserSchema>;

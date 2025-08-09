@@ -1,8 +1,8 @@
-import { type Static, Type } from "@sinclair/typebox";
+import z from "zod";
 
-export const ForgotPasswordRequestSchema = Type.Object({
-	email: Type.String({ format: "email" }),
+export const ForgotPasswordRequestSchema = z.object({
+	email: z.email(),
 });
-export const ForgotPasswordResponseSchema = Type.String();
+export const ForgotPasswordResponseSchema = z.null();
 
-export type FrogotPasswordRequest = Static<typeof ForgotPasswordRequestSchema>;
+export type ForgotPasswordRequest = z.Infer<typeof ForgotPasswordRequestSchema>;

@@ -1,7 +1,9 @@
-import { Type } from "@sinclair/typebox";
+import z from "zod";
 
-export const CategorySchema = Type.Object({
-	id: Type.Number(),
-	name: Type.String(),
-	path: Type.String(),
+export const CategorySchema = z.object({
+	id: z.number().positive(),
+	name: z.string(),
+	path: z.string(),
+	imageId: z.string().nullable(),
+	imageUrl: z.string().nullable(),
 });

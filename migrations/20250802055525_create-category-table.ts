@@ -16,7 +16,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		)
 		.addColumn("name", "text", (col) => col.notNull())
 		.addColumn("path", sql`ltree`, (col) => col.notNull().unique())
-
+		.addColumn("image_id", "text")
+		.addColumn("image_url", "text")
 		.execute();
 
 	await sql`CREATE INDEX idx_category_path_gist ON category USING GIST(path)`.execute(
@@ -37,11 +38,12 @@ export async function up(db: Kysely<any>): Promise<void> {
 
 			{ name: "Аксессуары для создания уюта", path: "CozyAccessories" },
 			{ name: "Постельное белье", path: "CozyAccessories.Bedding" },
-			{ name: "Одеяла", path: "CozyAccessories.Blankets" },
 			{
 				name: "Комплекты постельного белья",
 				path: "CozyAccessories.Bedding.Sets",
 			},
+			{ name: "Одеяла", path: "CozyAccessories.Blankets" },
+
 			{ name: "Подушки", path: "CozyAccessories.Pillows" },
 			{ name: "Пледы", path: "CozyAccessories.Plids" },
 
@@ -68,6 +70,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 			{ name: "Столы", path: "Accessories.Tables" },
 			{ name: "Стулья", path: "Accessories.Chairs" },
 			{ name: "Кровати", path: "Accessories.Beds" },
+
+			{ name: "Декор для дома", path: "HomeDecor" },
+			{ name: "Вазы и миски", path: "HomeDecor.VasesAndBowls" },
+			{ name: "Зеркала", path: "HomeDecor.Mirrors" },
+			{ name: "Коробки и корзины", path: "HomeDecor.BoxesAndBaskets" },
 		])
 		.execute();
 }

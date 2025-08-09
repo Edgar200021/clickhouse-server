@@ -1,26 +1,17 @@
-import { type ObjectOptions, type TSchema, Type } from "@sinclair/typebox";
+import z from "zod";
 
-export const SuccessResponseSchema = <T extends TSchema>(
-	T: T,
-	options?: ObjectOptions,
-) =>
-	Type.Object(
-		{
-			status: Type.Literal("success"),
-			data: T,
-		},
-		options,
-	);
+export const SuccessResponseSchema = <T extends z.ZodTypeAny>(data: T) =>
+	z.object({
+		status: z.literal("success"),
+		data,
+	});
 
-export const ErrorResponseSchema = Type.Object({
-	status: Type.Literal("error"),
-	error: Type.String(),
+export const ErrorResponseSchema = z.object({
+	status: z.literal("error"),
+	error: z.string(),
 });
 
-export const ValidationErrorResponseSchema = Type.Object({
-	status: Type.Literal("error"),
-	errors: Type.Record(Type.String(), Type.Array(Type.String())),
+export const ValidationErrorResponseSchema = z.object({
+	status: z.literal("error"),
+	errors: z.record(z.string(), z.string()),
 });
-
-export const NullableSchema = <T extends TSchema>(T: T) =>
-	Type.Union([Type.Null(), T]);

@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { VerificationPrefix } from "../../../src/const/redis.js";
-import { SignUpPasswordMinLength } from "../../../src/const/type-box.js";
+import { SignUpPasswordMinLength } from "../../../src/const/zod.js";
 import { buildTestApp } from "../../testApp.js";
 
 describe("Authentication", () => {

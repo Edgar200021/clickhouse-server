@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { sign } from "@fastify/cookie";
 import type {
 	FastifyInstance,
 	InjectOptions,
@@ -10,6 +12,18 @@ import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
 import { VerificationPrefix } from "../src/const/redis.js";
+import type { UserRole } from "../src/types/db/db.js";
+
+type WithSignIn = {
+	fn: (
+		this: TestApp,
+		options?: Omit<InjectOptions, "method" | "url">,
+	) => Promise<LightMyRequestResponse>;
+	args?: Omit<InjectOptions, "method" | "url">;
+};
+
+export const ImagePath = path.join(import.meta.dirname, "./assets/photo.jpg");
+export const PdfPath = path.join(import.meta.dirname, "./assets/food.pdf");
 
 interface TestApp {
 	app: FastifyInstance;
@@ -24,6 +38,7 @@ interface TestApp {
 	logout: typeof logout;
 	getMe: typeof getMe;
 	getCategories: typeof getCategories;
+	createCategory: typeof createCategory;
 }
 
 async function signUp(
@@ -75,22 +90,35 @@ async function signIn(
 	});
 }
 
-async function withSignIn(
+async function withSignIn<
+	T extends InjectOptions | InjectOptions[] | WithSignIn | WithSignIn[],
+>(
 	this: TestApp,
 	signInBody: Pick<InjectOptions, "body">,
-	arg:
-		| InjectOptions
-		| {
-				fn: (
-					this: TestApp,
-					options?: Omit<InjectOptions, "method" | "url">,
-				) => Promise<LightMyRequestResponse>;
-				args?: Omit<InjectOptions, "method" | "url">;
-		  },
-): Promise<LightMyRequestResponse> {
+	arg: T,
+	role?: UserRole,
+): Promise<
+	T extends Array<InjectOptions | WithSignIn>
+		? LightMyRequestResponse[]
+		: LightMyRequestResponse
+> {
 	const res = await this.createAndVerify(signInBody);
 	if (res.statusCode !== 200) {
 		throw new Error("Failed to create and verify account");
+	}
+
+	if (
+		role &&
+		signInBody.body &&
+		typeof signInBody.body === "object" &&
+		"email" in signInBody.body &&
+		typeof signInBody.body.email === "string"
+	) {
+		await this.app.kysely
+			.updateTable("users")
+			.set({ role })
+			.where("email", "=", signInBody.body.email)
+			.execute();
 	}
 
 	const signInRes = await this.signIn({ ...signInBody });
@@ -106,23 +134,24 @@ async function withSignIn(
 		throw new Error("Cookie not found");
 	}
 
-	if ("fn" in arg) {
-		return arg.fn.call(this, {
-			...arg.args,
-			cookies: {
-				...(arg ? arg.args?.cookies : {}),
-				[cookie.name]: cookie.value,
-			},
-		});
-	}
+	const run = (item: InjectOptions | WithSignIn) =>
+		"fn" in item
+			? item.fn.call(this, {
+					...item.args,
+					cookies: {
+						...(item.args?.cookies || {}),
+						[cookie.name]: cookie.value,
+					},
+				})
+			: this.app.inject({
+					...item,
+					cookies: { ...(item.cookies || {}), [cookie.name]: cookie.value },
+				});
 
-	return this.app.inject({
-		...arg,
-		cookies: {
-			...arg.cookies,
-			[cookie.name]: cookie.value,
-		},
-	});
+	if (Array.isArray(arg)) {
+		return Promise.all(arg.map(run));
+	}
+	return run(arg);
 }
 
 async function forgotPassword(
@@ -180,6 +209,17 @@ async function getCategories(
 	});
 }
 
+async function createCategory(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: "/api/v1/admin/categories",
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -190,7 +230,7 @@ export async function buildTestApp(): Promise<TestApp> {
 	config.rateLimit.resetPasswordLimit = 10;
 	config.rateLimit.accountVerificationLimit = 10;
 	config.rateLimit.getMeLimit = 5;
-	config.logger.logToFile = "false";
+	config.logger.logToFile = false;
 
 	await dbCreate(config.database);
 	await dbMigrate(config.database);
@@ -216,5 +256,6 @@ export async function buildTestApp(): Promise<TestApp> {
 		logout,
 		getMe,
 		getCategories,
+		createCategory,
 	};
 }

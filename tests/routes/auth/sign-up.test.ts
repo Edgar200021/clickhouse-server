@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../../src/const/type-box.js";
+} from "../../../src/const/zod.js";
 import { buildTestApp } from "../../testApp.js";
 
 describe("Authentication", () => {

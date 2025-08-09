@@ -1,7 +1,5 @@
-import {
-	type FastifyPluginAsyncTypebox,
-	Type,
-} from "@fastify/type-provider-typebox";
+import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
+import z from "zod";
 import {
 	ForgotPasswordRequestSchema,
 	ForgotPasswordResponseSchema,
@@ -32,7 +30,7 @@ import {
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
 
-const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	const { config, authService } = fastify;
 
 	fastify.post(
@@ -49,7 +47,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				body: SignUpRequestSchema,
 				response: {
 					201: SuccessResponseSchema(SignUpResponseSchema),
-					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 			},
 		},
@@ -76,7 +74,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				body: VerifyAccountRequestSchema,
 				response: {
 					200: SuccessResponseSchema(VerifyAccountResponseSchema),
-					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 			},
 		},
@@ -100,6 +98,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				querystring: GenOAuthRedirectUrlQuerySchema,
+				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
@@ -129,6 +128,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				querystring: OAuthRequestQuerySchema,
+				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
@@ -147,6 +147,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				querystring: GenOAuthRedirectUrlQuerySchema,
+				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
@@ -174,6 +175,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 			schema: {
 				querystring: OAuthRequestQuerySchema,
+				tags: ["Authentication"],
 			},
 		},
 		async (req, reply) => {
@@ -194,7 +196,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				body: SignInRequestSchema,
 				response: {
 					200: SuccessResponseSchema(SignInResponseSchema),
-					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
@@ -234,7 +236,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				body: ForgotPasswordRequestSchema,
 				response: {
 					200: SuccessResponseSchema(ForgotPasswordResponseSchema),
-					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
@@ -244,7 +246,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 
 			reply.status(200).send({
 				status: "success",
-				data: "Forgot password successful",
+				data: null,
 			});
 		},
 	);
@@ -262,7 +264,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				body: ResetPasswordRequestSchema,
 				response: {
 					200: SuccessResponseSchema(ResetPasswordResponseSchema),
-					400: Type.Union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Authentication"],
 			},
@@ -287,6 +289,9 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 				},
 			},
 			preHandler: async (req, reply) => await req.authenticate(reply),
+			schema: {
+				tags: ["Authentication"],
+			},
 		},
 		async (req, reply) => {
 			await authService.logout(req);

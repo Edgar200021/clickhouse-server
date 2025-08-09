@@ -1,18 +1,17 @@
-import { type Static, Type } from "@sinclair/typebox";
-
+import z from "zod";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../const/type-box.js";
+} from "../../const/zod.js";
 import { UserSchema } from "../user/user.schema.js";
 
-export const SignInRequestSchema = Type.Object({
-	email: Type.String({ format: "email" }),
-	password: Type.String({
-		minLength: SignUpPasswordMinLength,
-		maxLength: SignUpPasswordMaxLength,
-	}),
+export const SignInRequestSchema = z.object({
+	email: z.email(),
+	password: z
+		.string()
+		.min(SignUpPasswordMinLength)
+		.max(SignUpPasswordMaxLength),
 });
 export const SignInResponseSchema = UserSchema;
 
-export type SignInRequest = Static<typeof SignInRequestSchema>;
+export type SignInRequest = z.Infer<typeof SignInRequestSchema>;
