@@ -6,7 +6,12 @@ import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../src/const/zod.js";
 import type { Category } from "../../../src/types/db/category.js";
 import { UserRole } from "../../../src/types/db/db.js";
-import { buildTestApp, ImagePath, PdfPath } from "../../testApp.js";
+import {
+	buildTestApp,
+	ImagePath,
+	PdfPath,
+	type WithSignIn,
+} from "../../testApp.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -15,12 +20,6 @@ describe("Admin", () => {
 	const user = {
 		email: faker.internet.email(),
 		password: faker.internet.password({ length: SignUpPasswordMinLength }),
-	};
-
-	const categoryData = {
-		name: faker.string.alpha(),
-		path: faker.string.alpha(),
-		image: createReadStream(ImagePath),
 	};
 
 	beforeEach(async () => {
@@ -34,100 +33,97 @@ describe("Admin", () => {
 		await testApp.close();
 	});
 
-	describe("Create Category", () => {
-		it("Should return 201 status code when request is successfull", async () => {
-			const createCategoryRes = await testApp.withSignIn(
+	describe("Update Category", () => {
+		it("Should return 200 status code when request is successfull", async () => {
+			const updateCategoryRes = await testApp.withSignIn<
+				Parameters<typeof testApp.updateCategory>["1"][],
+				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
+			>(
 				{ body: user },
 				{
-					fn: testApp.createCategory,
+					fn: testApp.updateCategory,
 					args: {
-						...formAutoContent(categoryData),
+						...formAutoContent({ name: "newname" }),
 					},
+					additionalArg: [categories[0].id],
 				},
 				UserRole.Admin,
 			);
 
-			expect(createCategoryRes.statusCode).toBe(201);
+			expect(updateCategoryRes.statusCode).toBe(200);
 		});
 
-		it("Should save category into database when request is successfull", async () => {
-			const createCategoryRes = await testApp.withSignIn(
+		it("Should change category in database when request is successfull", async () => {
+			await testApp.withSignIn<
+				Parameters<typeof testApp.updateCategory>["1"][],
+				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
+			>(
 				{ body: user },
 				{
-					fn: testApp.createCategory,
+					fn: testApp.updateCategory,
 					args: {
-						...formAutoContent(categoryData),
+						...formAutoContent(
+							{ name: "new name" },
+							{
+								headers: { "content-type": "multipart/form-data" },
+							},
+						),
 					},
+					additionalArg: [categories[0].id],
 				},
 				UserRole.Admin,
 			);
-			const createdCategory = await testApp.app.kysely
-				.selectFrom("category")
-				.where("path", "=", categoryData.path)
-				.executeTakeFirst();
 
-			expect(createdCategory).toBeDefined;
+			const dbCategory = await testApp.app.kysely
+				.selectFrom("category")
+				.selectAll()
+				.where("id", "=", categories[0].id)
+				.executeTakeFirstOrThrow();
+
+			expect(dbCategory.name !== categories[0].name);
+			expect(dbCategory.name === "new name");
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {
 			const testCases = [
+				{},
 				{
-					name: faker.string.alpha(),
+					path: "invalid path",
 				},
 				{
-					path: faker.string.alpha(),
-				},
-				{
-					image: createReadStream(ImagePath),
-				},
-				{
-					name: faker.string.alpha(),
-					path: faker.string.alpha(),
-				},
-				{
-					name: faker.string.alpha(),
-					image: createReadStream(ImagePath),
-				},
-				{
-					path: faker.string.alpha(),
-					image: createReadStream(ImagePath),
-				},
-				{
-					name: faker.string.alpha(),
-					path: faker.string.sample(),
-					image: createReadStream(ImagePath),
-				},
-				{
-					name: faker.string.alpha(),
-					path: faker.string.alphanumeric(),
-					image: "Non file",
-				},
-				{
-					name: faker.string.alpha(),
-					path: faker.string.alphanumeric(),
 					image: createReadStream(PdfPath),
 				},
 				{
 					name: faker.string.alpha(),
 					path: faker.string.alpha(),
+					image: "Non file",
+				},
+				{
+					name: faker.string.alpha(),
 					image: createReadStream(ImagePath),
 					predefinedPath: "invalid path",
+					path: faker.string.alpha(),
 				},
 			];
 
-			const responses = await testApp.withSignIn(
+			const responses = await testApp.withSignIn<
+				Parameters<typeof testApp.updateCategory>["1"][],
+				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>[]
+			>(
 				{ body: user },
 				testCases.map((t) => ({
-					fn: testApp.createCategory,
+					fn: testApp.updateCategory,
 					args: {
 						...formAutoContent(t),
 					},
+					additionalArg: [categories[0].id],
 				})),
 				UserRole.Admin,
 			);
 
-			for (const response of responses as LightMyRequestResponse[])
+			for (const response of responses as LightMyRequestResponse[]) {
 				expect(response.statusCode).toBe(400);
+			}
 		});
 
 		it("Should return 400 and 404 status codes when predefinedPath doesn't exists or full path already exists", async () => {
@@ -136,34 +132,36 @@ describe("Admin", () => {
 			)!;
 			expect(predefinedPath).toBeDefined;
 
-			const lastPart = categories.find(
+			const childs = categories.filter(
 				(c) =>
 					c.path.startsWith(predefinedPath) && c.path.split(".").length === 2,
 			)!;
-			expect(lastPart).toBeDefined;
+			expect(childs.length).greaterThanOrEqual(2);
 
 			const testCases = [
 				{
 					name: faker.string.alpha(),
 					path: faker.string.alpha(),
 					predefinedPath: "randompath",
-					image: createReadStream(ImagePath),
 				},
 				{
 					name: faker.string.alpha(),
-					path: lastPart.path.slice(lastPart.path.indexOf(".") + 1),
+					path: childs[1].path.slice(childs[1].path.indexOf(".") + 1),
 					predefinedPath,
-					image: createReadStream(ImagePath),
 				},
 			];
 
-			const responses = await testApp.withSignIn(
+			const responses = await testApp.withSignIn<
+				Parameters<typeof testApp.updateCategory>["1"][],
+				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>[]
+			>(
 				{ body: user },
 				testCases.map((t) => ({
-					fn: testApp.createCategory,
+					fn: testApp.updateCategory,
 					args: {
 						...formAutoContent(t),
 					},
+					additionalArg: [childs[0].id],
 				})),
 				UserRole.Admin,
 			);
@@ -174,23 +172,26 @@ describe("Admin", () => {
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const createCategoryRes = await testApp.createCategory();
+			const createCategoryRes = await testApp.updateCategory({}, 1);
 
 			expect(createCategoryRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const createCategoryRes = await testApp.withSignIn(
+			const updateCategoryRes = await testApp.withSignIn<
+				Parameters<typeof testApp.updateCategory>["1"][],
+				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
+			>(
 				{ body: user },
 				{
-					fn: testApp.createCategory,
+					fn: testApp.updateCategory,
 					args: {
-						...formAutoContent(categoryData),
+						...formAutoContent({ name: "new name" }),
 					},
+					additionalArg: [categories[0].id],
 				},
 			);
-
-			expect(createCategoryRes.statusCode).toBe(403);
+			expect(updateCategoryRes.statusCode).toBe(403);
 		});
 	});
 });

@@ -1,4 +1,7 @@
 import { Readable } from "node:stream";
+import type { MultipartValue } from "@fastify/multipart";
+import type { FastifyReply } from "fastify/types/reply.js";
+import type { FastifyRequest } from "fastify/types/request.js";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import z from "zod";
 import { ca } from "zod/v4/locales";
@@ -21,9 +24,24 @@ import { UserRole } from "../types/db/db.js";
 const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	const { httpErrors, config, categoryService } = fastify;
 
+	const multipartOnly = async (req: FastifyRequest, reply: FastifyReply) => {
+		if (
+			!req.headers["content-type"]?.includes("multipart/form-data") &&
+			!req.headers["content-type"]?.includes(
+				"application/x-www-form-urlencoded",
+			)
+		) {
+			return reply.status(415).send({
+				status: "error",
+				error:
+					"Unsupported Media Type, multipart/form-data or 'application/x-www-form-urlencoded required",
+			});
+		}
+	};
+
 	fastify.addHook("onRequest", async (req, reply) => {
 		await req.authenticate(reply);
-		req.hasPermission(reply, [UserRole.Admin]);
+		await req.hasPermission([UserRole.Admin]);
 	});
 
 	fastify.get(
@@ -57,16 +75,22 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.post(
 		"/admin/categories",
 		{
+			preHandler: multipartOnly,
 			preValidation: async (req) => {
-				const formData = await req.formData();
-				//@ts-expect-error ...
-				req.body = Object.fromEntries(formData.entries());
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+					//@ts-expect-error ...
+					req.body = Object.fromEntries(formData.entries());
+				}
 			},
 			schema: {
 				body: CreateCategoryRequestSchema,
 				consumes: ["multipart/form-data"],
 				response: {
 					201: SuccessResponseSchema(CreateCategoryResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Admin"],
 			},
@@ -84,25 +108,46 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.patch(
 		"/admin/categories/:categoryId",
 		{
+			preHandler: multipartOnly,
+			preValidation: async (req) => {
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+					//@ts-expect-error ...
+					req.body = Object.fromEntries(formData.entries());
+				}
+			},
 			schema: {
+				consumes: ["multipart/form-data"],
 				params: CategoryParamSchema,
 				body: UpdateCategoryRequestSchema,
 				response: {
 					200: SuccessResponseSchema(UpdateCategoryResponseSchema),
 					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
+				tags: ["Admin"],
 			},
 		},
 		async (req, reply) => {
+			console.log(req.body);
+
+			if (
+				Object.keys(req.body).length === 0 ||
+				Object.values(req.body).some((v) => v === "undefined")
+			) {
+				throw httpErrors.badRequest("Request body is empty");
+			}
+
+			const category = await categoryService.updateCategory(
+				req.body,
+				req.params,
+				req.log,
+			);
+
 			reply.status(200).send({
 				status: "success",
-				data: {
-					id: 1,
-					name: "",
-					path: "",
-					imageId: null,
-					imageUrl: null,
-				},
+				data: category,
 			});
 		},
 	);

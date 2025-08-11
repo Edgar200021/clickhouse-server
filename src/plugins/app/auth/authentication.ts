@@ -18,13 +18,13 @@ function authenticate(instance: FastifyInstance) {
 
 		if (!session) {
 			this.log.info("Authentication failed: session not found");
-			return reply.unauthorized("Unauthorized");
+			throw instance.httpErrors.unauthorized("Unauthorized");
 		}
 
 		const unsigned = this.unsignCookie(session);
 		if (!unsigned.valid) {
 			this.log.info("Authentication failed: session not valid");
-			return reply.unauthorized("Unauthorized");
+			throw instance.httpErrors.unauthorized("Unauthorized");
 		}
 
 		const [oauthPrefix, value] = unsigned.value.split(OAauthSessionPrefix);
@@ -46,7 +46,7 @@ function authenticate(instance: FastifyInstance) {
 			this.log.info(
 				"Authentication failed: session in db not found or expired",
 			);
-			return reply.unauthorized("Unauthorized");
+			throw instance.httpErrors.unauthorized("Unauthorized");
 		}
 
 		const user = await instance.kysely
@@ -57,7 +57,7 @@ function authenticate(instance: FastifyInstance) {
 
 		if (!user) {
 			this.log.info("Authentication failed: user not found");
-			return reply.unauthorized("Unauthorized");
+			throw instance.httpErrors.unauthorized("Unauthorized");
 		}
 
 		assertValidUser(user, this.log, instance.httpErrors, {

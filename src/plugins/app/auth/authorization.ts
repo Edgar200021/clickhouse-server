@@ -1,4 +1,5 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import { httpErrors } from "@fastify/sensible";
+import type { FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import type { UserRole } from "../../../types/db/db.js";
 
@@ -7,16 +8,11 @@ declare module "fastify" {
 		hasPermission: typeof hasPermission;
 	}
 }
-
-function hasPermission(
-	this: FastifyRequest,
-	reply: FastifyReply,
-	roles: UserRole[],
-) {
-	if (!this.user) return reply.unauthorized("Unauthorized");
+async function hasPermission(this: FastifyRequest, roles: UserRole[]) {
+	if (!this.user) throw httpErrors.unauthorized("Unauthorized");
 
 	if (!roles.includes(this.user.role)) {
-		return reply.forbidden("Access denied");
+		throw httpErrors.forbidden("Access denied");
 	}
 }
 

@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { sign } from "@fastify/cookie";
 import type {
 	FastifyInstance,
 	InjectOptions,
@@ -12,14 +11,17 @@ import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
 import { VerificationPrefix } from "../src/const/redis.js";
+import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 
-type WithSignIn = {
+export type WithSignIn<T extends unknown[] = unknown[]> = {
 	fn: (
 		this: TestApp,
 		options?: Omit<InjectOptions, "method" | "url">,
+		...args: T
 	) => Promise<LightMyRequestResponse>;
 	args?: Omit<InjectOptions, "method" | "url">;
+	additionalArg?: T;
 };
 
 export const ImagePath = path.join(import.meta.dirname, "./assets/photo.jpg");
@@ -39,6 +41,7 @@ interface TestApp {
 	getMe: typeof getMe;
 	getCategories: typeof getCategories;
 	createCategory: typeof createCategory;
+	updateCategory: typeof updateCategory;
 }
 
 async function signUp(
@@ -91,14 +94,15 @@ async function signIn(
 }
 
 async function withSignIn<
-	T extends InjectOptions | InjectOptions[] | WithSignIn | WithSignIn[],
+	T extends unknown[],
+	U extends InjectOptions | InjectOptions[] | WithSignIn<T> | WithSignIn<T>[],
 >(
 	this: TestApp,
 	signInBody: Pick<InjectOptions, "body">,
-	arg: T,
+	arg: U,
 	role?: UserRole,
 ): Promise<
-	T extends Array<InjectOptions | WithSignIn>
+	T extends Array<InjectOptions | WithSignIn<T>>
 		? LightMyRequestResponse[]
 		: LightMyRequestResponse
 > {
@@ -136,13 +140,19 @@ async function withSignIn<
 
 	const run = (item: InjectOptions | WithSignIn) =>
 		"fn" in item
-			? item.fn.call(this, {
-					...item.args,
-					cookies: {
-						...(item.args?.cookies || {}),
-						[cookie.name]: cookie.value,
+			? item.fn.call(
+					this,
+					{
+						...item.args,
+						cookies: {
+							...(item.args?.cookies || {}),
+							[cookie.name]: cookie.value,
+						},
 					},
-				})
+					...(Array.isArray(item.additionalArg)
+						? item.additionalArg
+						: [item.additionalArg]),
+				)
 			: this.app.inject({
 					...item,
 					cookies: { ...(item.cookies || {}), [cookie.name]: cookie.value },
@@ -220,6 +230,18 @@ async function createCategory(
 	});
 }
 
+async function updateCategory(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	categoryId?: Category["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/categories${categoryId ? `/${categoryId}` : ""}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -257,5 +279,6 @@ export async function buildTestApp(): Promise<TestApp> {
 		getMe,
 		getCategories,
 		createCategory,
+		updateCategory,
 	};
 }
