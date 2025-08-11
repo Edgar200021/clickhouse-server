@@ -119,6 +119,21 @@ export function createCategoryService(instance: FastifyInstance) {
 		return updatedCategory;
 	}
 
+	async function deleteCategory(param: CategoryParam, log: FastifyBaseLogger) {
+		const category = await kysely
+			.deleteFrom("category")
+			.where("id", "=", param.categoryId)
+			.returning(["id"])
+			.executeTakeFirst();
+
+		if (!category) {
+			log.info(`Delete category failed: category not found`);
+			throw httpErrors.notFound("Category not found");
+		}
+
+		await updateCache();
+	}
+
 	async function isValid<
 		T extends
 			| { action: "create"; data: CreateCategoryRequest }
@@ -194,5 +209,6 @@ export function createCategoryService(instance: FastifyInstance) {
 		getCategories,
 		createCategory,
 		updateCategory,
+		deleteCategory,
 	};
 }

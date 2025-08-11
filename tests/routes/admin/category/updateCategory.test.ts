@@ -3,15 +3,15 @@ import { faker } from "@faker-js/faker/locale/ur";
 import type { LightMyRequestResponse } from "fastify";
 import formAutoContent from "form-auto-content";
 import { describe, expect, it } from "vitest";
-import { SignUpPasswordMinLength } from "../../../src/const/zod.js";
-import type { Category } from "../../../src/types/db/category.js";
-import { UserRole } from "../../../src/types/db/db.js";
+import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
+import type { Category } from "../../../../src/types/db/category.js";
+import { UserRole } from "../../../../src/types/db/db.js";
 import {
 	buildTestApp,
 	ImagePath,
 	PdfPath,
 	type WithSignIn,
-} from "../../testApp.js";
+} from "../../../testApp.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;

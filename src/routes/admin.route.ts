@@ -114,7 +114,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					req.headers["content-type"] !== "application/x-www-form-urlencoded"
 				) {
 					const formData = await req.formData();
-					//@ts-expect-error ...
 					req.body = Object.fromEntries(formData.entries());
 				}
 			},
@@ -164,6 +163,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
+			await categoryService.deleteCategory(req.params, req.log);
 			reply.status(200).send({
 				status: "success",
 				data: null,

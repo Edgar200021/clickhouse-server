@@ -42,6 +42,7 @@ interface TestApp {
 	getCategories: typeof getCategories;
 	createCategory: typeof createCategory;
 	updateCategory: typeof updateCategory;
+	deleteCategory: typeof deleteCategory;
 }
 
 async function signUp(
@@ -242,6 +243,18 @@ async function updateCategory(
 	});
 }
 
+async function deleteCategory(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	categoryId?: Category["id"],
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/categories${categoryId ? `/${categoryId}` : ""}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -280,5 +293,6 @@ export async function buildTestApp(): Promise<TestApp> {
 		getCategories,
 		createCategory,
 		updateCategory,
+		deleteCategory,
 	};
 }
