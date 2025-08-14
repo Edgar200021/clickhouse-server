@@ -13,6 +13,7 @@ import { setupConfig } from "../src/config.js";
 import { VerificationPrefix } from "../src/const/redis.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
+import type { Manufacturer } from "../src/types/db/manufacturer.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
 	fn: (
@@ -43,6 +44,10 @@ interface TestApp {
 	createCategory: typeof createCategory;
 	updateCategory: typeof updateCategory;
 	deleteCategory: typeof deleteCategory;
+	getManufacturers: typeof getManufacturers;
+	createManufacturer: typeof createManufacturer;
+	updateManufacturer: typeof updateManufacturer;
+	deleteManufacturer: typeof deleteManufacturer;
 }
 
 async function signUp(
@@ -255,6 +260,52 @@ async function deleteCategory(
 	});
 }
 
+async function getManufacturers(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: "/api/v1/admin/manufacturers",
+		...options,
+	});
+}
+
+async function createManufacturer(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: "/api/v1/admin/manufacturers",
+		...options,
+	});
+}
+
+async function updateManufacturer(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	manufacturerId?: Manufacturer["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/manufacturers${manufacturerId ? `/${manufacturerId}` : ""}`,
+		...options,
+	});
+}
+
+async function deleteManufacturer(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	manufacturerId?: Manufacturer["id"],
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/manufacturers${manufacturerId ? `/${manufacturerId}` : ""}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -294,5 +345,9 @@ export async function buildTestApp(): Promise<TestApp> {
 		createCategory,
 		updateCategory,
 		deleteCategory,
+		getManufacturers,
+		createManufacturer,
+		updateManufacturer,
+		deleteManufacturer,
 	};
 }

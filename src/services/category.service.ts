@@ -27,7 +27,7 @@ export function createCategoryService(instance: FastifyInstance) {
 	async function createCategory(
 		data: CreateCategoryRequest,
 		log: FastifyBaseLogger,
-	) {
+	): Promise<Category> {
 		const { uploadResult, fullPath } = await isValid(
 			{ action: "create", data: { ...data } },
 			log,
@@ -59,7 +59,7 @@ export function createCategoryService(instance: FastifyInstance) {
 		data: UpdateCategoryRequest,
 		param: CategoryParam,
 		log: FastifyBaseLogger,
-	) {
+	): Promise<Category> {
 		const category = await kysely
 			.selectFrom("category")
 			.selectAll()
@@ -123,12 +123,16 @@ export function createCategoryService(instance: FastifyInstance) {
 		const category = await kysely
 			.deleteFrom("category")
 			.where("id", "=", param.categoryId)
-			.returning(["id"])
+			.returning(["id", "imageId"])
 			.executeTakeFirst();
 
 		if (!category) {
 			log.info(`Delete category failed: category not found`);
 			throw httpErrors.notFound("Category not found");
+		}
+
+		if (category.imageId) {
+			await fileUploaderManager.deleteFile(category.imageId);
 		}
 
 		await updateCache();

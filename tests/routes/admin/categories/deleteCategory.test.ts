@@ -43,7 +43,7 @@ describe("Admin", () => {
 			expect(deleteCategoryRes.statusCode).toBe(200);
 		});
 
-		it("Should be deleted in database when request is successfull", async () => {
+		it("Should be deleted from database when request is successfull", async () => {
 			await testApp.withSignIn<
 				Parameters<typeof testApp.deleteCategory>["1"][],
 				WithSignIn<Parameters<typeof testApp.deleteCategory>["1"][]>

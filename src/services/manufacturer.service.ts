@@ -1,0 +1,101 @@
+import type { FastifyBaseLogger } from "fastify";
+import type { FastifyInstance } from "fastify/types/instance.js";
+import type { CreateManufacturerRequest } from "../schemas/manufacturer/create-manufacturer.schema.js";
+import type { ManufacturerParam } from "../schemas/manufacturer/manufacturer-param.schema.js";
+import type { UpdateManufacturerRequest } from "../schemas/manufacturer/update-manufacturer.schema.js";
+import type { Manufacturer } from "../types/db/manufacturer.js";
+
+export function createManufacturerService(instance: FastifyInstance) {
+	const { kysely, httpErrors } = instance;
+
+	async function getManufacturers(): Promise<Manufacturer[]> {
+		const manufacturers = await kysely
+			.selectFrom("manufacturer")
+			.selectAll()
+			.execute();
+
+		return manufacturers;
+	}
+
+	async function createManufacturer(
+		data: CreateManufacturerRequest,
+		log: FastifyBaseLogger,
+	): Promise<Manufacturer> {
+		const manufacturer = await kysely
+			.selectFrom("manufacturer")
+			.select(["id"])
+			.where("name", "=", data.name)
+			.executeTakeFirst();
+
+		if (manufacturer) {
+			log.info("Create manufacturer failed: manufacturer already exists");
+			throw httpErrors.badRequest("Manufacturer already exists");
+		}
+
+		const newManufacturer = await kysely
+			.insertInto("manufacturer")
+			.values({
+				name: data.name,
+			})
+			.returningAll()
+			.executeTakeFirstOrThrow();
+
+		return newManufacturer;
+	}
+
+	async function updateManufacturer(
+		data: UpdateManufacturerRequest,
+		param: ManufacturerParam,
+		log: FastifyBaseLogger,
+	): Promise<Manufacturer> {
+		const manufacturer = await kysely
+			.selectFrom("manufacturer")
+			.select(["id"])
+			.where("name", "=", data.name)
+			.executeTakeFirst();
+
+		if (manufacturer) {
+			log.info("Update manufacturer failed: manufacturer already exists");
+			throw httpErrors.badRequest("Manufacturer already exists");
+		}
+
+		const updatedManifacturer = await kysely
+			.updateTable("manufacturer")
+			.set({
+				name: data.name,
+			})
+			.where("id", "=", param.manufacturerId)
+			.returningAll()
+			.executeTakeFirst();
+
+		if (!updatedManifacturer) {
+			log.info("Update manufacturer failed: manufacturer doesn't exist");
+			throw httpErrors.notFound("Manufacturer doesn't exist");
+		}
+
+		return updatedManifacturer;
+	}
+
+	async function deleteManufacturer(
+		param: ManufacturerParam,
+		log: FastifyBaseLogger,
+	) {
+		const manufacturer = await kysely
+			.deleteFrom("manufacturer")
+			.where("id", "=", param.manufacturerId)
+			.returning("id")
+			.executeTakeFirst();
+
+		if (!manufacturer) {
+			log.info("Delete manufacturer failed: manufacturer doesn't exist");
+			throw httpErrors.notFound("Manufacturer doesn't exist");
+		}
+	}
+
+	return {
+		getManufacturers,
+		createManufacturer,
+		updateManufacturer,
+		deleteManufacturer,
+	};
+}

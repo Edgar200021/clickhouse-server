@@ -62,12 +62,7 @@ describe("Admin", () => {
 				{
 					fn: testApp.updateCategory,
 					args: {
-						...formAutoContent(
-							{ name: "new name" },
-							{
-								headers: { "content-type": "multipart/form-data" },
-							},
-						),
+						...formAutoContent({ name: "new name" }),
 					},
 					additionalArg: [categories[0].id],
 				},
