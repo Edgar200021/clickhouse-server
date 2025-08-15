@@ -26,10 +26,12 @@ import {
 	UpdateManufacturerRequestSchema,
 	UpdateManufacturerResponseSchema,
 } from "../schemas/manufacturer/update-manufacturer.schema.js";
+import { BlockToggleRequestSchema } from "../schemas/user/blockToggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
 	GetUsersResponseSchema,
 } from "../schemas/user/getUsers.schema.js";
+import { UserParamSchema } from "../schemas/user/user-param.schema.js";
 import { UserRole } from "../types/db/db.js";
 
 const plugin: FastifyPluginAsyncZod = async (fastify) => {
@@ -324,6 +326,30 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 						updatedAt: u.updatedAt.toISOString(),
 					})),
 				},
+			});
+		},
+	);
+
+	fastify.patch(
+		"/admin/users/:userId/block-toggle",
+		{
+			schema: {
+				params: UserParamSchema,
+				body: BlockToggleRequestSchema,
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+				description: "Lock or unlock a user by ID",
+			},
+		},
+		async (req, reply) => {
+			await userService.blockToggle(req.body, req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
 			});
 		},
 	);

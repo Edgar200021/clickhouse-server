@@ -1,3 +1,4 @@
+import type { FastifyBaseLogger } from "fastify";
 import type { FastifyInstance } from "fastify/types/instance.js";
 import {
 	type Expression,
@@ -6,8 +7,9 @@ import {
 	type SqlBool,
 	sql,
 } from "kysely";
-
+import type { BlockToggleRequest } from "../schemas/user/blockToggle.schema.js";
 import type { GetUsersRequestQuery } from "../schemas/user/getUsers.schema.js";
+import type { UserParam } from "../schemas/user/user-param.schema.js";
 import type { WithCount } from "../types/base.js";
 import { type DB, UserRole } from "../types/db/db.js";
 import type { User } from "../types/db/user.js";
@@ -44,6 +46,41 @@ export function createUserService(instance: FastifyInstance) {
 		return { totalCount, users };
 	}
 
+	async function blockToggle(
+		data: BlockToggleRequest,
+		param: UserParam,
+		log: FastifyBaseLogger,
+	) {
+		const user = await kysely
+			.selectFrom("users")
+			.select(["isBanned"])
+			.where("id", "=", param.userId)
+			.executeTakeFirst();
+
+		if (!user) {
+			log.info("Block toggle failed: user doesn't exist");
+			throw httpErrors.notFound("User doesn't exist");
+		}
+
+		if (user.isBanned === (data.type === "lock")) {
+			log.info(
+				{ userId: param.userId, attemptedAction: data.type },
+				`Block toggle failed: user is already ${data.type === "lock" ? "banned" : "unbanned"}`,
+			);
+			throw httpErrors.badRequest(
+				`User is already ${data.type === "lock" ? "banned" : "unbanned"}`,
+			);
+		}
+
+		await kysely
+			.updateTable("users")
+			.where("id", "=", param.userId)
+			.set({
+				isBanned: data.type === "lock",
+			})
+			.execute();
+	}
+
 	function buildFilters(
 		query: GetUsersRequestQuery,
 		eb: ExpressionBuilder<DB, "users">,
@@ -67,5 +104,6 @@ export function createUserService(instance: FastifyInstance) {
 
 	return {
 		getUsers,
+		blockToggle,
 	};
 }

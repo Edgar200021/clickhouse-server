@@ -1,4 +1,3 @@
-import { execPath } from "node:process";
 import { faker } from "@faker-js/faker/locale/ur";
 import { describe, expect, it } from "vitest";
 import type z from "zod";
@@ -9,7 +8,7 @@ import {
 import type { AdminUserSchema } from "../../../../src/schemas/user/user.schema.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import type { User } from "../../../../src/types/db/user.js";
-import { buildTestApp, type WithSignIn } from "../../../testApp.js";
+import { buildTestApp } from "../../../testApp.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -113,7 +112,6 @@ describe("Admin", () => {
 					UserRole.Admin,
 				);
 
-				console.log(res);
 				expect(res.statusCode).toBe(200);
 
 				const {

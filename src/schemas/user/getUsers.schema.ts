@@ -12,8 +12,14 @@ export const GetUsersRequestQuerySchema = z.object({
 		.optional()
 		.default(GetUsersDefaultLimit),
 	page: z.coerce.number().positive().optional().default(1),
-	isVerified: z.coerce.boolean().optional(),
-	isBanned: z.coerce.boolean().optional(),
+	isVerified: z
+		.enum(["true", "false"])
+		.transform((val) => val === "true")
+		.optional(),
+	isBanned: z
+		.enum(["true", "false"])
+		.transform((val) => val === "true")
+		.optional(),
 });
 export const GetUsersResponseSchema = WithCountSchema(
 	"users",

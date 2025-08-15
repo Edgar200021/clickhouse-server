@@ -14,6 +14,7 @@ import { VerificationPrefix } from "../src/const/redis.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
+import type { User } from "../src/types/db/user.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
 	fn: (
@@ -50,6 +51,7 @@ interface TestApp {
 	updateManufacturer: typeof updateManufacturer;
 	deleteManufacturer: typeof deleteManufacturer;
 	getUsers: typeof getUsers;
+	blockToggle: typeof blockToggle;
 }
 
 async function signUp(
@@ -331,6 +333,18 @@ async function getUsers(
 	});
 }
 
+async function blockToggle(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	userId?: User["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/users${userId ? `/${userId}/block-toggle` : ""}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -376,5 +390,6 @@ export async function buildTestApp(): Promise<TestApp> {
 		updateManufacturer,
 		deleteManufacturer,
 		getUsers,
+		blockToggle,
 	};
 }
