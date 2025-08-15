@@ -26,10 +26,15 @@ import {
 	UpdateManufacturerRequestSchema,
 	UpdateManufacturerResponseSchema,
 } from "../schemas/manufacturer/update-manufacturer.schema.js";
+import {
+	GetUsersRequestQuerySchema,
+	GetUsersResponseSchema,
+} from "../schemas/user/getUsers.schema.js";
 import { UserRole } from "../types/db/db.js";
 
 const plugin: FastifyPluginAsyncZod = async (fastify) => {
-	const { httpErrors, manufacturerService, categoryService } = fastify;
+	const { httpErrors, categoryService, manufacturerService, userService } =
+		fastify;
 
 	const multipartOnly = async (req: FastifyRequest, reply: FastifyReply) => {
 		if (
@@ -197,6 +202,31 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		},
 	);
 
+	fastify.get(
+		"/admin/manufacturers/:manufacturerId",
+		{
+			schema: {
+				params: ManufacturerParamSchema,
+				response: {
+					200: SuccessResponseSchema(ManufacturerSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const manufacturer = await manufacturerService.getManufacturer(
+				req.params,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: manufacturer,
+			});
+		},
+	);
+
 	fastify.post(
 		"/admin/manufacturers",
 		{
@@ -265,6 +295,35 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			reply.status(200).send({
 				status: "success",
 				data: null,
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/users",
+		{
+			schema: {
+				querystring: GetUsersRequestQuerySchema,
+				response: {
+					200: SuccessResponseSchema(GetUsersResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const { totalCount, users } = await userService.getUsers(req.query);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					totalCount,
+					users: users.map((u) => ({
+						...u,
+						createdAt: u.createdAt.toISOString(),
+						updatedAt: u.updatedAt.toISOString(),
+					})),
+				},
 			});
 		},
 	);

@@ -67,6 +67,20 @@ export async function buildApp(config: Config) {
 		}
 
 		if (isResponseSerializationError(err)) {
+			app.log.error(
+				{
+					name: err.name,
+					message: err.message,
+					stack: err.stack,
+					request: {
+						method: req.method,
+						url: req.url,
+						query: req.query,
+						params: req.params,
+					},
+				},
+				"Response serialization error",
+			);
 			return reply.code(500).send({
 				status: "error",
 				error: "Response doesn't match the schema",

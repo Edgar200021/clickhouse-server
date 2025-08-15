@@ -49,71 +49,31 @@ describe("Admin", () => {
 		manufacturers.length = 0;
 	});
 
-	describe("Delete Manufacturer", () => {
+	describe("Get Manufacturer", () => {
 		it("Should return 200 status code when request is successfull", async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
+			const getManufacturerRes = await testApp.withSignIn<
+				Parameters<typeof testApp.getManufacturer>["1"][],
+				WithSignIn<Parameters<typeof testApp.getManufacturer>["1"][]>
 			>(
 				{ body: user },
 				{
-					fn: testApp.deleteManufacturer,
+					fn: testApp.getManufacturer,
 					additionalArg: [manufacturers[0].id],
 				},
 				UserRole.Admin,
 			);
 
-			expect(deleteManufacturerRes.statusCode).toBe(200);
-		});
-
-		it("Should be deleted from database when request is successfull", async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
-			>(
-				{ body: user },
-				{
-					fn: testApp.deleteManufacturer,
-					additionalArg: [manufacturers[0].id],
-				},
-				UserRole.Admin,
-			);
-
-			expect(deleteManufacturerRes.statusCode).toBe(200);
-
-			const dbManufacturer = await testApp.app.kysely
-				.selectFrom("manufacturer")
-				.selectAll()
-				.where("id", "=", manufacturers[0].id)
-				.executeTakeFirst();
-
-			expect(dbManufacturer).toBeUndefined;
-		});
-
-		it("should return 400 when deleting default manufacturer", async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
-			>(
-				{ body: user },
-				{
-					fn: testApp.deleteManufacturer,
-					additionalArg: [1],
-				},
-				UserRole.Admin,
-			);
-
-			expect(deleteManufacturerRes.statusCode).toBe(400);
+			expect(getManufacturerRes.statusCode).toBe(200);
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
+			const getManufacturerRes = await testApp.withSignIn<
+				Parameters<typeof testApp.getManufacturer>["1"][],
+				WithSignIn<Parameters<typeof testApp.getManufacturer>["1"][]>
 			>(
 				{ body: user },
 				{
-					fn: testApp.deleteManufacturer,
+					fn: testApp.getManufacturer,
 					additionalArg: [
 						"invalidid" as unknown as Parameters<
 							typeof testApp.deleteManufacturer
@@ -123,41 +83,41 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(deleteManufacturerRes.statusCode).toBe(400);
+			expect(getManufacturerRes.statusCode).toBe(400);
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const deleteManufacturerRes = await testApp.deleteManufacturer(
+			const getManufacturerRes = await testApp.getManufacturer(
 				{},
 				manufacturers[0].id,
 			);
 
-			expect(deleteManufacturerRes.statusCode).toBe(401);
+			expect(getManufacturerRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
+			const getManufacturerRes = await testApp.withSignIn<
+				Parameters<typeof testApp.getManufacturer>["1"][],
+				WithSignIn<Parameters<typeof testApp.getManufacturer>["1"][]>
 			>(
 				{ body: user },
 				{
-					fn: testApp.deleteManufacturer,
+					fn: testApp.getManufacturer,
 					additionalArg: [manufacturers[0].id],
 				},
 			);
 
-			expect(deleteManufacturerRes.statusCode).toBe(403);
+			expect(getManufacturerRes.statusCode).toBe(403);
 		});
 
 		it("Should return 404 status code when manufacturer doesn't exist", async () => {
-			const deleteManufacturerRes = await testApp.withSignIn<
-				Parameters<typeof testApp.deleteManufacturer>["1"][],
-				WithSignIn<Parameters<typeof testApp.deleteManufacturer>["1"][]>
+			const getManufacturerRes = await testApp.withSignIn<
+				Parameters<typeof testApp.getManufacturer>["1"][],
+				WithSignIn<Parameters<typeof testApp.getManufacturer>["1"][]>
 			>(
 				{ body: user },
 				{
-					fn: testApp.deleteManufacturer,
+					fn: testApp.getManufacturer,
 					args: {
 						body: {
 							name: faker.string.sample(),
@@ -168,7 +128,7 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(deleteManufacturerRes.statusCode).toBe(404);
+			expect(getManufacturerRes.statusCode).toBe(404);
 		});
 	});
 });

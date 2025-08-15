@@ -1,7 +1,11 @@
+import { exec } from "node:child_process";
 import type { FastifyBaseLogger } from "fastify";
 import type { FastifyInstance } from "fastify/types/instance.js";
 import type { CreateManufacturerRequest } from "../schemas/manufacturer/create-manufacturer.schema.js";
-import type { ManufacturerParam } from "../schemas/manufacturer/manufacturer-param.schema.js";
+import {
+	type ManufacturerParam,
+	ManufacturerParamSchema,
+} from "../schemas/manufacturer/manufacturer-param.schema.js";
 import type { UpdateManufacturerRequest } from "../schemas/manufacturer/update-manufacturer.schema.js";
 import type { Manufacturer } from "../types/db/manufacturer.js";
 
@@ -15,6 +19,24 @@ export function createManufacturerService(instance: FastifyInstance) {
 			.execute();
 
 		return manufacturers;
+	}
+
+	async function getManufacturer(
+		param: ManufacturerParam,
+		log: FastifyBaseLogger,
+	): Promise<Manufacturer> {
+		const manufacturer = await kysely
+			.selectFrom("manufacturer")
+			.selectAll()
+			.where("id", "=", param.manufacturerId)
+			.executeTakeFirst();
+
+		if (!manufacturer) {
+			log.info("Get manufacturer failed: manufacturer doesn't exist");
+			throw httpErrors.notFound("Manufacturer doesn't exist");
+		}
+
+		return manufacturer;
 	}
 
 	async function createManufacturer(
@@ -81,19 +103,30 @@ export function createManufacturerService(instance: FastifyInstance) {
 		log: FastifyBaseLogger,
 	) {
 		const manufacturer = await kysely
-			.deleteFrom("manufacturer")
+			.selectFrom("manufacturer")
 			.where("id", "=", param.manufacturerId)
-			.returning("id")
+			.select(["id"])
 			.executeTakeFirst();
 
 		if (!manufacturer) {
 			log.info("Delete manufacturer failed: manufacturer doesn't exist");
 			throw httpErrors.notFound("Manufacturer doesn't exist");
 		}
+
+		if (manufacturer.id === 1) {
+			log.info("Delete manufacturer failed: can't delete default manufacturer");
+			throw httpErrors.badRequest("Can't delete default manufacturer");
+		}
+
+		await kysely
+			.deleteFrom("manufacturer")
+			.where("id", "=", param.manufacturerId)
+			.execute();
 	}
 
 	return {
 		getManufacturers,
+		getManufacturer,
 		createManufacturer,
 		updateManufacturer,
 		deleteManufacturer,

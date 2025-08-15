@@ -15,3 +15,9 @@ export const ValidationErrorResponseSchema = z.object({
 	status: z.literal("error"),
 	errors: z.record(z.string(), z.string()),
 });
+
+export const WithCountSchema = <T extends z.ZodTypeAny>(key: string, data: T) =>
+	z.object({
+		totalCount: z.number().gte(0),
+		[key]: data,
+	});

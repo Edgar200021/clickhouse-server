@@ -6,6 +6,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.createType("currency")
 		.asEnum(["RUB", "USD", "EUR"])
 		.execute();
+
 	await db.schema
 		.createTable("product")
 		.addColumn("id", "integer", (col) =>
@@ -136,6 +137,6 @@ export async function down(db: Kysely<any>): Promise<void> {
 	await db.schema.dropTable("product_sku_package").execute();
 	await db.schema.dropTable("product_sku").execute();
 	await db.schema.dropTable("product").execute();
-	await db.schema.dropType("currency_enum").execute();
+	await db.schema.dropType("currency").execute();
 	await sql`DROP EXTENSION IF EXISTS hstore`.execute(db);
 }

@@ -45,9 +45,11 @@ interface TestApp {
 	updateCategory: typeof updateCategory;
 	deleteCategory: typeof deleteCategory;
 	getManufacturers: typeof getManufacturers;
+	getManufacturer: typeof getManufacturer;
 	createManufacturer: typeof createManufacturer;
 	updateManufacturer: typeof updateManufacturer;
 	deleteManufacturer: typeof deleteManufacturer;
+	getUsers: typeof getUsers;
 }
 
 async function signUp(
@@ -271,6 +273,18 @@ async function getManufacturers(
 	});
 }
 
+async function getManufacturer(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	manufacturerId?: Manufacturer["id"],
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/manufacturers${manufacturerId ? `/${manufacturerId}` : ""}`,
+		...options,
+	});
+}
+
 async function createManufacturer(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
@@ -302,6 +316,17 @@ async function deleteManufacturer(
 	return await this.app.inject({
 		method: "DELETE",
 		url: `/api/v1/admin/manufacturers${manufacturerId ? `/${manufacturerId}` : ""}`,
+		...options,
+	});
+}
+
+async function getUsers(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/users`,
 		...options,
 	});
 }
@@ -346,8 +371,10 @@ export async function buildTestApp(): Promise<TestApp> {
 		updateCategory,
 		deleteCategory,
 		getManufacturers,
+		getManufacturer,
 		createManufacturer,
 		updateManufacturer,
 		deleteManufacturer,
+		getUsers,
 	};
 }
