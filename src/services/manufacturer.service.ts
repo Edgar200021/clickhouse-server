@@ -8,6 +8,8 @@ import {
 } from "../schemas/manufacturer/manufacturer-param.schema.js";
 import type { UpdateManufacturerRequest } from "../schemas/manufacturer/update-manufacturer.schema.js";
 import type { Manufacturer } from "../types/db/manufacturer.js";
+import { isDatabaseError } from "../types/db/error.js";
+import { DuplicateCode } from "../const/database.js";
 
 export function createManufacturerService(instance: FastifyInstance) {
 	const { kysely, httpErrors } = instance;
@@ -43,26 +45,24 @@ export function createManufacturerService(instance: FastifyInstance) {
 		data: CreateManufacturerRequest,
 		log: FastifyBaseLogger,
 	): Promise<Manufacturer> {
-		const manufacturer = await kysely
-			.selectFrom("manufacturer")
-			.select(["id"])
-			.where("name", "=", data.name)
-			.executeTakeFirst();
+		try {
+			const newManufacturer = await kysely
+				.insertInto("manufacturer")
+				.values({
+					name: data.name,
+				})
+				.returningAll()
+				.executeTakeFirstOrThrow();
 
-		if (manufacturer) {
-			log.info("Create manufacturer failed: manufacturer already exists");
-			throw httpErrors.badRequest("Manufacturer already exists");
+			return newManufacturer;
+		} catch (err) {
+			if (isDatabaseError(err) && err.code === DuplicateCode) {
+				log.info("Create manufacturer failed: manufacturer already exists");
+				throw httpErrors.badRequest("Manufacturer already exists");
+			}
+
+			throw err;
 		}
-
-		const newManufacturer = await kysely
-			.insertInto("manufacturer")
-			.values({
-				name: data.name,
-			})
-			.returningAll()
-			.executeTakeFirstOrThrow();
-
-		return newManufacturer;
 	}
 
 	async function updateManufacturer(

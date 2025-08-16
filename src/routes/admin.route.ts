@@ -1,4 +1,3 @@
-import type { FastifyReply } from "fastify/types/reply.js";
 import type { FastifyRequest } from "fastify/types/request.js";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import z from "zod";
@@ -26,17 +25,30 @@ import {
 	UpdateManufacturerRequestSchema,
 	UpdateManufacturerResponseSchema,
 } from "../schemas/manufacturer/update-manufacturer.schema.js";
-import { BlockToggleRequestSchema } from "../schemas/user/blockToggle.schema.js";
+import {
+	CreateProductRequestSchema,
+	CreateProductResponseSchema,
+} from "../schemas/product/create-product.schema.js";
+import {
+	GetProductsRequestQuerySchema,
+	GetProductsResponseSchema,
+} from "../schemas/product/get-products.schema.js";
+import { BlockToggleRequestSchema } from "../schemas/user/block-toggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
 	GetUsersResponseSchema,
-} from "../schemas/user/getUsers.schema.js";
+} from "../schemas/user/get-users.schema.js";
 import { UserParamSchema } from "../schemas/user/user-param.schema.js";
 import { UserRole } from "../types/db/db.js";
 
 const plugin: FastifyPluginAsyncZod = async (fastify) => {
-	const { httpErrors, categoryService, manufacturerService, userService } =
-		fastify;
+	const {
+		httpErrors,
+		categoryService,
+		manufacturerService,
+		userService,
+		productService,
+	} = fastify;
 
 	const multipartOnly = async (req: FastifyRequest, reply: FastifyReply) => {
 		if (
@@ -57,34 +69,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		await req.authenticate(reply);
 		await req.hasPermission([UserRole.Admin]);
 	});
-
-	fastify.get(
-		"/admin",
-		{
-			preHandler: async (req, reply) => {
-				await req.authenticate(reply);
-			},
-		},
-		async (req, reply) => {
-			reply.status(200).send({
-				route: "admin",
-			});
-		},
-	);
-
-	fastify.post(
-		"/admin/products",
-		{
-			preHandler: async (req, reply) => {
-				await req.authenticate(reply);
-			},
-		},
-		async (req, reply) => {
-			reply.status(200).send({
-				route: "admin",
-			});
-		},
-	);
 
 	fastify.post(
 		"/admin/categories",
@@ -350,6 +334,72 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			reply.status(200).send({
 				status: "success",
 				data: null,
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/products",
+		{
+			schema: {
+				querystring: GetProductsRequestQuerySchema,
+				response: {
+					200: SuccessResponseSchema(GetProductsResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const { totalCount, products } = await productService.getAll(req.query);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					totalCount,
+					products: products.map((u) => ({
+						...u,
+						createdAt: u.createdAt.toISOString(),
+						updatedAt: u.updatedAt.toISOString(),
+					})),
+				},
+			});
+		},
+	);
+
+	fastify.post(
+		"/admin/products",
+		{
+			preHandler: multipartOnly,
+			preValidation: async (req) => {
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+					//@ts-expect-error ...
+					req.body = Object.fromEntries(formData.entries());
+				}
+			},
+			schema: {
+				body: CreateProductRequestSchema,
+				consumes: ["multipart/form-data"],
+				response: {
+					201: SuccessResponseSchema(CreateProductResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const product = await productService.create(req.body, req.log);
+
+			reply.status(201).send({
+				status: "success",
+				data: {
+					...product,
+					createdAt: product.createdAt.toISOString(),
+					updatedAt: product.updatedAt.toISOString(),
+				},
 			});
 		},
 	);

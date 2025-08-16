@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { faker } from "@faker-js/faker/locale/ur";
+import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import formAutoContent from "form-auto-content";
 import { describe, expect, it } from "vitest";

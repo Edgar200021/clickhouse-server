@@ -1,5 +1,4 @@
-import { faker } from "@faker-js/faker/locale/ur";
-import type { LightMyRequestResponse } from "fastify";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
 import { UserRole } from "../../../../src/types/db/db.js";
@@ -16,31 +15,14 @@ describe("Admin", () => {
 
 	beforeEach(async () => {
 		testApp = await buildTestApp();
-		const responses = await testApp.withSignIn(
-			{
-				body: {
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-				},
-			},
-			[
-				faker.string.sample(),
-				faker.string.sample(),
-				faker.string.sample(),
-				faker.string.sample(),
-			].map((name) => ({
-				fn: testApp.createManufacturer,
-				args: {
-					body: { name },
-				},
-			})),
-			UserRole.Admin,
-		);
 
-		for (const response of responses as LightMyRequestResponse[]) {
-			manufacturers.push(response.json<{ data: Manufacturer }>().data);
+		const values = await testApp.app.kysely
+			.selectFrom("manufacturer")
+			.selectAll()
+			.execute();
+
+		for (const val of values) {
+			manufacturers.push(val);
 		}
 	});
 
@@ -58,7 +40,7 @@ describe("Admin", () => {
 				{ body: user },
 				{
 					fn: testApp.deleteManufacturer,
-					additionalArg: [manufacturers[0].id],
+					additionalArg: [manufacturers[1].id],
 				},
 				UserRole.Admin,
 			);
@@ -74,7 +56,7 @@ describe("Admin", () => {
 				{ body: user },
 				{
 					fn: testApp.deleteManufacturer,
-					additionalArg: [manufacturers[0].id],
+					additionalArg: [manufacturers[1].id],
 				},
 				UserRole.Admin,
 			);
@@ -98,7 +80,7 @@ describe("Admin", () => {
 				{ body: user },
 				{
 					fn: testApp.deleteManufacturer,
-					additionalArg: [1],
+					additionalArg: [manufacturers[0].id],
 				},
 				UserRole.Admin,
 			);

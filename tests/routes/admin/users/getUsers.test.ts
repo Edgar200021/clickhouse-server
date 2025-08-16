@@ -1,6 +1,7 @@
-import { faker } from "@faker-js/faker/locale/ur";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import type z from "zod";
+import { fi } from "zod/v4/locales";
 import {
 	GetUsersMaxLimit,
 	SignUpPasswordMinLength,
@@ -12,7 +13,7 @@ import { buildTestApp } from "../../../testApp.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
-	let insertedUsers: User[] = [];
+	let dbUsers: User[] = [];
 	const user = {
 		email: faker.internet.email(),
 		password: faker.internet.password({ length: SignUpPasswordMinLength }),
@@ -21,48 +22,12 @@ describe("Admin", () => {
 	beforeEach(async () => {
 		testApp = await buildTestApp();
 
-		const inserted = await testApp.app.kysely
-			.insertInto("users")
-			.values([
-				{
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-					isBanned: true,
-				},
-				{
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-				},
-				{
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-					isVerified: true,
-				},
-				{
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-					isVerified: true,
-				},
-				{
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-					role: UserRole.Admin,
-				},
-			])
-			.returningAll()
+		const users = await testApp.app.kysely
+			.selectFrom("users")
+			.selectAll()
 			.execute();
 
-		insertedUsers = inserted;
+		dbUsers = users;
 	});
 
 	afterEach(async () => {
@@ -85,10 +50,10 @@ describe("Admin", () => {
 
 			expect(getUsersRes.statusCode).toBe(200);
 			expect(totalCount).toBe(
-				insertedUsers.filter((u) => u.role !== UserRole.Admin).length,
+				dbUsers.filter((u) => u.role !== UserRole.Admin).length,
 			);
 			expect(users).toHaveLength(
-				insertedUsers.filter((u) => u.role !== UserRole.Admin).length,
+				dbUsers.filter((u) => u.role !== UserRole.Admin).length,
 			);
 		});
 
@@ -125,7 +90,7 @@ describe("Admin", () => {
 				}>();
 
 				expect(totalCount).toBe(
-					insertedUsers.filter(
+					dbUsers.filter(
 						(u) =>
 							(Object.hasOwn(query, "isBanned") ? u.isBanned : u.isVerified) &&
 							u.role !== UserRole.Admin,
@@ -140,9 +105,9 @@ describe("Admin", () => {
 		});
 
 		it("Should filter users by search (case-insensitive, substring)", async () => {
-			const firstNonAdmin = insertedUsers.find(
-				(u) => u.role !== UserRole.Admin,
-			);
+			const firstNonAdmin = dbUsers.find((u) => u.role !== UserRole.Admin);
+			console.log("DB USERS", "\n\n\n\n", dbUsers);
+			console.log("FIRST NON ADMIN", firstNonAdmin);
 			if (!firstNonAdmin) throw new Error("No non-admin user found for test");
 
 			const email = firstNonAdmin.email;

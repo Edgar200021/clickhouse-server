@@ -1,7 +1,6 @@
-import { faker } from "@faker-js/faker/locale/uk";
+import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
-import { fa } from "zod/v4/locales";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import type { User } from "../../../../src/types/db/user.js";

@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker/locale/ur";
+import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
@@ -16,31 +16,14 @@ describe("Admin", () => {
 
 	beforeEach(async () => {
 		testApp = await buildTestApp();
-		const responses = await testApp.withSignIn(
-			{
-				body: {
-					email: faker.internet.email(),
-					password: faker.internet.password({
-						length: SignUpPasswordMinLength,
-					}),
-				},
-			},
-			[
-				faker.string.sample(),
-				faker.string.sample(),
-				faker.string.sample(),
-				faker.string.sample(),
-			].map((name) => ({
-				fn: testApp.createManufacturer,
-				args: {
-					body: { name },
-				},
-			})),
-			UserRole.Admin,
-		);
 
-		for (const response of responses as LightMyRequestResponse[]) {
-			manufacturers.push(response.json<{ data: Manufacturer }>().data);
+		const values = await testApp.app.kysely
+			.selectFrom("manufacturer")
+			.selectAll()
+			.execute();
+
+		for (const val of values) {
+			manufacturers.push(val);
 		}
 	});
 

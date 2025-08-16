@@ -4,6 +4,8 @@
 	"main": "index.js",
 	"type": "module",
 	"scripts": {
+		"env": "tsx ./scripts/env-run.ts",
+		"with-local": "npm run env -- .env.local",
 		"start:local": "tsx watch --env-file=.env.local ./src/server.ts",
 		"start:dev": "npm run migration:run && tsx --env-file=.env ./src/server.ts",
 		"start:prod": "npm run migration:run && node --env-file=.env dist/src/server.js",
@@ -21,7 +23,10 @@
 		"migration:rollback": "npx kysely migrate:rollback --all",
 		"migration:list": "npx kysely migrate:list",
 		"migration:up": "npx kysely migrate:up",
-		"migration:down": "npx kysely migrate:down"
+		"migration:down": "npx kysely migrate:down",
+		"seed:create": "npx kysely seed:make",
+		"seed:run": "npx kysely seed:run",
+		"seed:list": "npx kysely seed:list"
 	},
 	"keywords": [],
 	"author": "",

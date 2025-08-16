@@ -2,6 +2,7 @@ import fp from "fastify-plugin";
 import { createAuthService } from "../../services/auth.service.js";
 import { createCategoryService } from "../../services/category.service.js";
 import { createManufacturerService } from "../../services/manufacturer.service.js";
+import { createProductService } from "../../services/product.service.js";
 import { createUserService } from "../../services/user.service.js";
 
 declare module "fastify" {
@@ -10,6 +11,7 @@ declare module "fastify" {
 		categoryService: ReturnType<typeof createCategoryService>;
 		manufacturerService: ReturnType<typeof createManufacturerService>;
 		userService: ReturnType<typeof createUserService>;
+		productService: ReturnType<typeof createProductService>;
 	}
 }
 
@@ -22,6 +24,7 @@ export default fp(
 			createManufacturerService(instance),
 		);
 		instance.decorate("userService", createUserService(instance));
+		instance.decorate("productService", createProductService(instance));
 	},
 	{ dependencies: ["oauth"] },
 );

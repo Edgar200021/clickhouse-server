@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker/locale/ur";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
 import { UserRole } from "../../../../src/types/db/db.js";

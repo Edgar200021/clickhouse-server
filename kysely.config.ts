@@ -1,3 +1,4 @@
+import { CamelCasePlugin } from "kysely";
 import { defineConfig, getKnexTimestampPrefix } from "kysely-ctl";
 import pg from "pg";
 
@@ -12,4 +13,9 @@ export default defineConfig({
 		migrationFolder: "migrations",
 		getMigrationPrefix: getKnexTimestampPrefix,
 	},
+	seeds: {
+		seedFolder: "seeds",
+		getSeedPrefix: getKnexTimestampPrefix,
+	},
+	plugins: [new CamelCasePlugin()],
 });

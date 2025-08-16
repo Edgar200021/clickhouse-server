@@ -46,6 +46,7 @@ export const configSchema = z.object({
 		ssl: z.enum(["true", "false"]).transform((value) => value === "true"),
 		poolMin: z.coerce.number().min(1).max(5).default(2).optional(),
 		poolMax: z.coerce.number().min(1).max(10).default(10).optional(),
+		databaseUrl: z.string(),
 	}),
 	redis: z.object({
 		host: z.string(),
@@ -137,6 +138,7 @@ export function setupConfig(): Config {
 			ssl: process.env.DATABASE_SSL,
 			poolMin: process.env.DATABASE_POOL_MIN,
 			poolMax: process.env.DATABASE_POOL_MAX,
+			databaseUrl: process.env.DATABASE_URL,
 		},
 		redis: {
 			host: process.env.REDIS_HOST,

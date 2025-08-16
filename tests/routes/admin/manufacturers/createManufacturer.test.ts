@@ -1,4 +1,4 @@
-import { faker } from "@faker-js/faker/locale/ur";
+import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";

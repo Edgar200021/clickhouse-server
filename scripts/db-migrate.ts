@@ -8,12 +8,23 @@ import type { DB } from "../src/types/db/db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import type { Migration } from "kysely";
 import ts from "ts-node";
+
+const execAsync = promisify(exec);
 
 ts.register({
 	transpileOnly: true,
 });
+
+export async function runMigrations() {
+	const { stderr } = await execAsync("npm run migration:run");
+	if (stderr) {
+		throw new Error(`Seed error: ${stderr}`);
+	}
+}
 
 export async function dbMigrate(config?: Config["database"]) {
 	const dbName = config?.name || process.env.DATABASE_NAME;

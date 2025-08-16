@@ -6,7 +6,8 @@ import type {
 	LightMyRequestResponse,
 } from "fastify";
 import { dbCreate } from "../scripts/db-create.js";
-import { dbMigrate } from "../scripts/db-migrate.js";
+import { runMigrations } from "../scripts/db-migrate.js";
+import { runSeed } from "../scripts/db-seed.js";
 import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
@@ -28,6 +29,8 @@ export type WithSignIn<T extends unknown[] = unknown[]> = {
 
 export const ImagePath = path.join(import.meta.dirname, "./assets/photo.jpg");
 export const PdfPath = path.join(import.meta.dirname, "./assets/food.pdf");
+export const TxtPath = path.join(import.meta.dirname, "./assets/text.txt");
+export const HtmlPath = path.join(import.meta.dirname, "./assets/index.html");
 
 interface TestApp {
 	app: FastifyInstance;
@@ -52,6 +55,8 @@ interface TestApp {
 	deleteManufacturer: typeof deleteManufacturer;
 	getUsers: typeof getUsers;
 	blockToggle: typeof blockToggle;
+	getProducts: typeof getProducts;
+	createProduct: typeof createProduct;
 }
 
 async function signUp(
@@ -345,6 +350,28 @@ async function blockToggle(
 	});
 }
 
+async function getProducts(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/products`,
+		...options,
+	});
+}
+
+async function createProduct(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/admin/products`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -356,9 +383,11 @@ export async function buildTestApp(): Promise<TestApp> {
 	config.rateLimit.accountVerificationLimit = 10;
 	config.rateLimit.getMeLimit = 5;
 	config.logger.logToFile = false;
+	process.env.DATABASE_URL = `postgresql://${config.database.user}:${config.database.password}@${config.database.host}:${config.database.port}/${config.database.name}`;
 
 	await dbCreate(config.database);
-	await dbMigrate(config.database);
+	await runMigrations();
+	await runSeed();
 
 	const fastify = await buildApp(config);
 
@@ -391,5 +420,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		deleteManufacturer,
 		getUsers,
 		blockToggle,
+		getProducts,
+		createProduct,
 	};
 }
