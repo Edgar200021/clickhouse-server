@@ -17,7 +17,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
 			},
 		},
 		async (_, reply) => {
-			const data = await categoryService.getCategories();
+			const data = await categoryService.getAll();
 
 			reply.status(200).send({
 				status: "success",

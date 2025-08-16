@@ -1,12 +1,26 @@
 import z from "zod";
-import { ProductAssemblyInstructionMaxSize } from "../../const/zod.js";
+import {
+	ProductAssemblyInstructionMaxSize,
+	ProductDescriptionMaxLength,
+	ProductMaterialAndCareMaxLength,
+	ProductNameMaxLength,
+	ProductShortDescriptionMaxLength,
+} from "../../const/zod.js";
 import { ProductSchema } from "./product.schema.js";
 
 export const CreateProductRequestSchema = z.object({
-	name: z.string().trim().nonempty(),
-	description: z.string().trim().nonempty(),
-	shortDescription: z.string().trim().nonempty(),
-	materialsAndCare: z.string().trim().nonempty(),
+	name: z.string().trim().nonempty().max(ProductNameMaxLength),
+	description: z.string().trim().nonempty().max(ProductDescriptionMaxLength),
+	shortDescription: z
+		.string()
+		.trim()
+		.nonempty()
+		.max(ProductShortDescriptionMaxLength),
+	materialsAndCare: z
+		.string()
+		.trim()
+		.nonempty()
+		.max(ProductMaterialAndCareMaxLength),
 	assemblyInstruction: z
 		.file()
 		.max(ProductAssemblyInstructionMaxSize)

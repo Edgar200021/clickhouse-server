@@ -1,7 +1,10 @@
 import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
-import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
+import {
+	ManufacturerNameMaxLength,
+	SignUpPasswordMinLength,
+} from "../../../../src/const/zod.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import type { Manufacturer } from "../../../../src/types/db/manufacturer.js";
 import { buildTestApp, type WithSignIn } from "../../../testApp.js";
@@ -91,6 +94,9 @@ describe("Admin", () => {
 					name: 123,
 				},
 				{},
+				{
+					name: faker.string.alpha({ length: ManufacturerNameMaxLength + 1 }),
+				},
 				{
 					name: undefined,
 				},

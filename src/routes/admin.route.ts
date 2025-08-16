@@ -1,3 +1,4 @@
+import type { FastifyReply } from "fastify/types/reply.js";
 import type { FastifyRequest } from "fastify/types/request.js";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import z from "zod";
@@ -33,6 +34,11 @@ import {
 	GetProductsRequestQuerySchema,
 	GetProductsResponseSchema,
 } from "../schemas/product/get-products.schema.js";
+import { ProductParamSchema } from "../schemas/product/product-param.schema.js";
+import {
+	UpdateProductRequestSchema,
+	UpdateProductResponseSchema,
+} from "../schemas/product/update-product.schema.js";
 import { BlockToggleRequestSchema } from "../schemas/user/block-toggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
@@ -94,7 +100,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const category = await categoryService.createCategory(req.body, req.log);
+			const category = await categoryService.create(req.body, req.log);
 
 			reply.status(201).send({
 				status: "success",
@@ -127,14 +133,11 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			if (
-				Object.keys(req.body).length === 0 ||
-				Object.values(req.body).some((v) => v === "undefined")
-			) {
+			if (Object.keys(req.body).length === 0) {
 				throw httpErrors.badRequest("Request body is empty");
 			}
 
-			const category = await categoryService.updateCategory(
+			const category = await categoryService.update(
 				req.body,
 				req.params,
 				req.log,
@@ -159,7 +162,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			await categoryService.deleteCategory(req.params, req.log);
+			await categoryService.remove(req.params, req.log);
 			reply.status(200).send({
 				status: "success",
 				data: null,
@@ -298,7 +301,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const { totalCount, users } = await userService.getUsers(req.query);
+			const { totalCount, users } = await userService.getALl(req.query);
 
 			reply.status(200).send({
 				status: "success",
@@ -400,6 +403,73 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					createdAt: product.createdAt.toISOString(),
 					updatedAt: product.updatedAt.toISOString(),
 				},
+			});
+		},
+	);
+
+	fastify.patch(
+		"/admin/products/:productId",
+		{
+			preHandler: multipartOnly,
+			preValidation: async (req) => {
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+					req.body = Object.fromEntries(formData.entries());
+				}
+			},
+			schema: {
+				body: UpdateProductRequestSchema,
+				params: ProductParamSchema,
+				consumes: ["multipart/form-data"],
+				response: {
+					200: SuccessResponseSchema(UpdateProductResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			if (Object.keys(req.body).length === 0) {
+				throw httpErrors.badRequest("Request body is empty");
+			}
+
+			const product = await productService.update(
+				req.body,
+				req.params,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...product,
+					createdAt: product.createdAt.toISOString(),
+					updatedAt: product.updatedAt.toISOString(),
+				},
+			});
+		},
+	);
+
+	fastify.delete(
+		"/admin/products/:productId",
+		{
+			schema: {
+				params: ProductParamSchema,
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			await productService.remove(req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
 			});
 		},
 	);

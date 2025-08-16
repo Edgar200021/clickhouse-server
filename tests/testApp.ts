@@ -15,6 +15,7 @@ import { VerificationPrefix } from "../src/const/redis.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
+import type { Product } from "../src/types/db/product.js";
 import type { User } from "../src/types/db/user.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
@@ -57,6 +58,8 @@ interface TestApp {
 	blockToggle: typeof blockToggle;
 	getProducts: typeof getProducts;
 	createProduct: typeof createProduct;
+	updateProduct: typeof updateProduct;
+	deleteProduct: typeof deleteProduct;
 }
 
 async function signUp(
@@ -372,6 +375,30 @@ async function createProduct(
 	});
 }
 
+async function updateProduct(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productId?: Product["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/products${productId ? `/${productId}` : ""}`,
+		...options,
+	});
+}
+
+async function deleteProduct(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productId?: Product["id"],
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/products${productId ? `/${productId}` : ""}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -422,5 +449,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		blockToggle,
 		getProducts,
 		createProduct,
+		updateProduct,
+		deleteProduct,
 	};
 }

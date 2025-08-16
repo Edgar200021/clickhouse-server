@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { MultipartFile } from "@fastify/multipart";
+import path from "node:path";
 import type { UploadApiOptions } from "cloudinary";
 import type { FastifyInstance } from "fastify/types/instance.js";
 import fp from "fastify-plugin";
@@ -17,10 +17,13 @@ function createFileUploaderManager(fastify: FastifyInstance) {
 		use_filename: true,
 	};
 
-	async function uploadFromBuffer(
-		file: Buffer,
+	async function upload(
+		file: Buffer | File,
 		options?: UploadApiOptions,
 	): Promise<FileUploadResponse> {
+		const f =
+			file instanceof File ? Buffer.from(await file.arrayBuffer()) : file;
+
 		return new Promise((res, rej) => {
 			const publicId = randomUUID().toString();
 
@@ -29,6 +32,24 @@ function createFileUploaderManager(fastify: FastifyInstance) {
 					{
 						...options,
 						...baseOptions,
+						...(file instanceof File
+							? {
+									filename_override: file.name,
+									format: path.extname(file.name).slice(1),
+									resource_type: file.type.startsWith("video")
+										? "video"
+										: [
+													"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+													"text/plain",
+													"application/zip",
+													"application/vnd.ms-powerpoint",
+													"application/vnd.ms-excel",
+													"application/msword",
+												].includes(file.type)
+											? "raw"
+											: "auto",
+								}
+							: {}),
 						public_id: publicId,
 					},
 					(err, result) => {
@@ -43,7 +64,7 @@ function createFileUploaderManager(fastify: FastifyInstance) {
 						});
 					},
 				)
-				.end(file);
+				.end(f);
 		});
 	}
 
@@ -51,7 +72,7 @@ function createFileUploaderManager(fastify: FastifyInstance) {
 		await fastify.cloudinary.uploader.destroy(fileId);
 	}
 
-	return { uploadFromBuffer, deleteFile };
+	return { upload, deleteFile };
 }
 
 export default fp(

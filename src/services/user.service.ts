@@ -7,8 +7,8 @@ import {
 	type SqlBool,
 	sql,
 } from "kysely";
-import type { BlockToggleRequest } from "../schemas/user/blockToggle.schema.js";
-import type { GetUsersRequestQuery } from "../schemas/user/getUsers.schema.js";
+import type { BlockToggleRequest } from "../schemas/user/block-toggle.schema.js";
+import type { GetUsersRequestQuery } from "../schemas/user/get-users.schema.js";
 import type { UserParam } from "../schemas/user/user-param.schema.js";
 import type { WithCount } from "../types/base.js";
 import { type DB, UserRole } from "../types/db/db.js";
@@ -17,7 +17,7 @@ import type { User } from "../types/db/user.js";
 export function createUserService(instance: FastifyInstance) {
 	const { kysely, httpErrors } = instance;
 
-	async function getUsers(
+	async function getALl(
 		query: GetUsersRequestQuery,
 	): Promise<WithCount<Omit<User, "password" | "role">[], "users">> {
 		const users = await kysely
@@ -103,7 +103,7 @@ export function createUserService(instance: FastifyInstance) {
 	}
 
 	return {
-		getUsers,
+		getALl,
 		blockToggle,
 	};
 }

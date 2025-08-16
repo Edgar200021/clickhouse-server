@@ -6,13 +6,13 @@ import {
 	SignUpPasswordMinLength,
 } from "../../../../src/const/zod.js";
 import { UserRole } from "../../../../src/types/db/db.js";
+import type { Product } from "../../../../src/types/db/product.js";
 import { buildTestApp } from "../../../testApp.js";
-import { Product } from "../../../../src/types/db/product.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
 	let products: Product[];
-	let productsLengthWithoutDeleted: number;
+
 	const user = {
 		email: faker.internet.email(),
 		password: faker.internet.password({ length: SignUpPasswordMinLength }),
@@ -24,7 +24,6 @@ describe("Admin", () => {
 			.selectFrom("product")
 			.selectAll()
 			.execute();
-		productsLengthWithoutDeleted = products.filter((p) => !p.isDeleted).length;
 	});
 
 	afterEach(async () => await testApp.close());
@@ -50,7 +49,15 @@ describe("Admin", () => {
 				},
 				{
 					query: { limit: products.length },
-					expectedLength: productsLengthWithoutDeleted,
+					expectedLength: products.length,
+				},
+				{
+					query: { limit: products.length, isDeleted: false },
+					expectedLength: products.filter((p) => !p.isDeleted).length,
+				},
+				{
+					query: { limit: products.length, isDeleted: true },
+					expectedLength: products.filter((p) => p.isDeleted).length,
 				},
 				{
 					query: { limit: products.length, page: 2 },
@@ -86,14 +93,6 @@ describe("Admin", () => {
 					UserRole.Admin,
 				);
 
-				if (
-					getProductsRes.json().data.products.length !== testCase.expectedLength
-				) {
-					console.log("\n\n\n\n");
-					console.log(getProductsRes);
-					console.log("\n\n\n", testCase.query, "\t", testCase.expectedLength);
-				}
-
 				expect(
 					getProductsRes.json<{
 						status: "success";
@@ -122,6 +121,9 @@ describe("Admin", () => {
 				},
 				{
 					search: "",
+				},
+				{
+					isDeleted: "invalid value",
 				},
 			];
 			const responses = await testApp.withSignIn(

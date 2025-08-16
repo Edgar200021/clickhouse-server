@@ -8,6 +8,10 @@ import { ProductSchema } from "./product.schema.js";
 
 export const GetProductsRequestQuerySchema = z.object({
 	search: z.string().trim().nonempty().optional(),
+	isDeleted: z
+		.enum(["true", "false"])
+		.transform((val) => val === "true")
+		.optional(),
 	limit: z.coerce
 		.number()
 		.positive()

@@ -3,7 +3,12 @@ import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import formAutoContent from "form-auto-content";
 import { describe, expect, it } from "vitest";
-import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
+import {
+	CategoryNameMaxLength,
+	CategoryPathMaxLength,
+	CategoryPredefinedPathMaxLength,
+	SignUpPasswordMinLength,
+} from "../../../../src/const/zod.js";
 import type { Category } from "../../../../src/types/db/category.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import {
@@ -98,6 +103,17 @@ describe("Admin", () => {
 					image: createReadStream(ImagePath),
 					predefinedPath: "invalid path",
 					path: faker.string.alpha(),
+				},
+				{
+					name: faker.string.alpha({ length: CategoryNameMaxLength + 1 }),
+				},
+				{
+					path: faker.string.alpha({ length: CategoryPathMaxLength + 1 }),
+				},
+				{
+					predefinedPath: faker.string.alpha({
+						length: CategoryPredefinedPathMaxLength + 1,
+					}),
 				},
 			];
 

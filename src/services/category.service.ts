@@ -12,7 +12,7 @@ import type { Category } from "../types/db/category.js";
 export function createCategoryService(instance: FastifyInstance) {
 	const { kysely, redis, httpErrors, fileUploaderManager } = instance;
 
-	async function getCategories(): Promise<Category[]> {
+	async function getAll(): Promise<Category[]> {
 		const redisCategories = await redis.get(CategoriesKey);
 
 		if (redisCategories) {
@@ -24,7 +24,7 @@ export function createCategoryService(instance: FastifyInstance) {
 		return categories;
 	}
 
-	async function createCategory(
+	async function create(
 		data: CreateCategoryRequest,
 		log: FastifyBaseLogger,
 	): Promise<Category> {
@@ -55,7 +55,7 @@ export function createCategoryService(instance: FastifyInstance) {
 		return newCategory;
 	}
 
-	async function updateCategory(
+	async function update(
 		data: UpdateCategoryRequest,
 		param: CategoryParam,
 		log: FastifyBaseLogger,
@@ -119,7 +119,7 @@ export function createCategoryService(instance: FastifyInstance) {
 		return updatedCategory;
 	}
 
-	async function deleteCategory(param: CategoryParam, log: FastifyBaseLogger) {
+	async function remove(param: CategoryParam, log: FastifyBaseLogger) {
 		const category = await kysely
 			.deleteFrom("category")
 			.where("id", "=", param.categoryId)
@@ -185,7 +185,7 @@ export function createCategoryService(instance: FastifyInstance) {
 		}
 
 		const uploadResult = data.image
-			? await fileUploaderManager.uploadFromBuffer(
+			? await fileUploaderManager.upload(
 					Buffer.from(await data.image.arrayBuffer()),
 				)
 			: null;
@@ -210,9 +210,9 @@ export function createCategoryService(instance: FastifyInstance) {
 	}
 
 	return {
-		getCategories,
-		createCategory,
-		updateCategory,
-		deleteCategory,
+		getAll,
+		create,
+		update,
+		remove,
 	};
 }

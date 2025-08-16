@@ -2,7 +2,13 @@ import { createReadStream } from "node:fs";
 import { faker } from "@faker-js/faker";
 import type { LightMyRequestResponse } from "fastify";
 import formAutoContent from "form-auto-content";
-import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
+import {
+	ProductDescriptionMaxLength,
+	ProductMaterialAndCareMaxLength,
+	ProductNameMaxLength,
+	ProductShortDescriptionMaxLength,
+	SignUpPasswordMinLength,
+} from "../../../../src/const/zod.js";
 import type { Category } from "../../../../src/types/db/category.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import type { Manufacturer } from "../../../../src/types/db/manufacturer.js";
@@ -93,7 +99,7 @@ describe("Admin", () => {
 			expect(dbProduct.assemblyInstructionFileUrl).not.toBeNull;
 		});
 
-		it("Should return 400 status code when data is invalid", async () => {
+		it("Should return 400 status code when data is missed or invalid", async () => {
 			const testCases = [
 				{
 					description: faker.string.sample(),
@@ -146,6 +152,69 @@ describe("Admin", () => {
 					manufacturerId: 1,
 					assemblyInstruction: createReadStream(ImagePath),
 				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: "string",
+					manufacturerId: 1,
+				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: "string",
+				},
+				{
+					name: faker.string.alpha({ length: ProductNameMaxLength + 1 }),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: 1,
+				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.alpha({
+						length: ProductDescriptionMaxLength + 1,
+					}),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: 1,
+				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.alpha({
+						length: ProductShortDescriptionMaxLength + 1,
+					}),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: 1,
+				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.alpha({
+						length: ProductMaterialAndCareMaxLength + 1,
+					}),
+					categoryId: 1,
+					manufacturerId: 1,
+				},
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: 1,
+					assemblyInstruction: "Non file",
+				},
 			];
 			const responses = await testApp.withSignIn(
 				{ body: user },
@@ -177,41 +246,41 @@ describe("Admin", () => {
 			);
 			expect(getManufacturerRes.statusCode).toBe(403);
 		});
-	});
 
-	it("Should return 404 status code when category or manufacturer is not found", async () => {
-		const testCases = [
-			{
-				name: faker.string.sample(),
-				description: faker.string.sample(),
-				shortDescription: faker.string.sample(),
-				materialsAndCare: faker.string.sample(),
-				categoryId: Math.max(...categories.map((c) => c.id)) + 1,
-				manufacturerId: 1,
-			},
-			{
-				name: faker.string.sample(),
-				description: faker.string.sample(),
-				shortDescription: faker.string.sample(),
-				materialsAndCare: faker.string.sample(),
-				categoryId: 1,
-				manufacturerId: Math.max(...manufacturers.map((m) => m.id)) + 1,
-			},
-		];
-
-		const responses = await testApp.withSignIn(
-			{ body: user },
-			testCases.map((t) => ({
-				fn: testApp.createProduct,
-				args: {
-					...formAutoContent(t),
+		it("Should return 404 status code when category or manufacturer is not found", async () => {
+			const testCases = [
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: Math.max(...categories.map((c) => c.id)) + 1,
+					manufacturerId: 1,
 				},
-			})),
-			UserRole.Admin,
-		);
+				{
+					name: faker.string.sample(),
+					description: faker.string.sample(),
+					shortDescription: faker.string.sample(),
+					materialsAndCare: faker.string.sample(),
+					categoryId: 1,
+					manufacturerId: Math.max(...manufacturers.map((m) => m.id)) + 1,
+				},
+			];
 
-		for (const response of responses as LightMyRequestResponse[]) {
-			expect(response.statusCode).toBe(404);
-		}
+			const responses = await testApp.withSignIn(
+				{ body: user },
+				testCases.map((t) => ({
+					fn: testApp.createProduct,
+					args: {
+						...formAutoContent(t),
+					},
+				})),
+				UserRole.Admin,
+			);
+
+			for (const response of responses as LightMyRequestResponse[]) {
+				expect(response.statusCode).toBe(404);
+			}
+		});
 	});
 });

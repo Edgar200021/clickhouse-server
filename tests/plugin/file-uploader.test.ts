@@ -47,7 +47,7 @@ describe("Plugins", () => {
 	describe("File Uploader Manager", () => {
 		it("Should upload file", async () => {
 			const file = await readFile(ImagePath);
-			const res = await app.fileUploaderManager.uploadFromBuffer(file);
+			const res = await app.fileUploaderManager.upload(file);
 
 			expect(res.fileId).toBeDefined;
 			expect(res.fileName).toBeDefined;
@@ -56,7 +56,7 @@ describe("Plugins", () => {
 
 		it("Should delete file", async () => {
 			const file = await readFile(ImagePath);
-			const res = await app.fileUploaderManager.uploadFromBuffer(file);
+			const res = await app.fileUploaderManager.upload(file);
 
 			await app.fileUploaderManager.deleteFile(res.fileId);
 
