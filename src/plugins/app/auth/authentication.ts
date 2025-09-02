@@ -1,3 +1,4 @@
+import { unsign } from "@fastify/cookie";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { OAauthSessionPrefix } from "../../../const/cookie.js";
@@ -32,7 +33,11 @@ function authenticate(instance: FastifyInstance) {
 
 		const userId = (
 			!isOauth
-				? await instance.redis.get(`${SessionPrefix}${unsigned.value}`)
+				? await instance.redis.getex(
+						`${SessionPrefix}${unsigned.value}`,
+						"EX",
+						60 * instance.config.application.sessionTTLMinutes,
+					)
 				: await instance.redis.getex(
 						`${SessionPrefix}${value}`,
 						"EX",
@@ -65,15 +70,16 @@ function authenticate(instance: FastifyInstance) {
 			checkConditions: ["banned", "notVerified"],
 		});
 
-		if (isOauth) {
-			reply.setCookie(
-				instance.config.application.sessionCookieName,
-				unsigned.value,
-				{
-					maxAge: instance.config.application.oauthSessionTTLMinutes * 60,
-				},
-			);
-		}
+		reply.setCookie(
+			instance.config.application.sessionCookieName,
+			unsigned.value,
+			{
+				maxAge:
+					(isOauth
+						? instance.config.application.oauthSessionTTLMinutes
+						: instance.config.application.sessionTTLMinutes) * 60,
+			},
+		);
 
 		this.user = user;
 	};

@@ -3,8 +3,8 @@ import {
 	GetProductsDefaultLimit,
 	GetProductsMaxLimit,
 } from "../../const/zod.js";
-import { WithCountSchema } from "../base.schema.js";
-import { ProductSchema } from "./product.schema.js";
+import { WithPageCountSchema } from "../base.schema.js";
+import { ProductAdminSchema } from "./product.schema.js";
 
 export const GetProductsRequestQuerySchema = z.object({
 	search: z.string().trim().nonempty().optional(),
@@ -20,9 +20,9 @@ export const GetProductsRequestQuerySchema = z.object({
 		.default(GetProductsDefaultLimit),
 	page: z.coerce.number().positive().optional().default(1),
 });
-export const GetProductsResponseSchema = WithCountSchema(
+export const GetProductsResponseSchema = WithPageCountSchema(
 	"products",
-	z.array(ProductSchema),
+	z.array(ProductAdminSchema),
 );
 
 export type GetProductsRequestQuery = z.Infer<

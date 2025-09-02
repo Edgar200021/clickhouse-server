@@ -11,8 +11,9 @@ import { ForeignKeyConstraintCode } from "../const/database.js";
 import type { CreateProductRequest } from "../schemas/product/create-product.schema.js";
 import type { GetProductsRequestQuery } from "../schemas/product/get-products.schema.js";
 import type { ProductParam } from "../schemas/product/product-param.schema.js";
+import type { RemoveProductAssemblyInstructionRequest } from "../schemas/product/remove-product-assembly-instruction.schema.js";
 import type { UpdateProductRequest } from "../schemas/product/update-product.schema.js";
-import type { WithCount } from "../types/base.js";
+import type { WithPageCount } from "../types/base.js";
 import type { DB } from "../types/db/db.js";
 import { isDatabaseError } from "../types/db/error.js";
 import type { Product } from "../types/db/product.js";
@@ -22,7 +23,7 @@ export function createProductService(instance: FastifyInstance) {
 
 	async function getAll(
 		query: GetProductsRequestQuery,
-	): Promise<WithCount<Product[], "products">> {
+	): Promise<WithPageCount<Product[], "products">> {
 		const products = await kysely
 			.selectFrom("product")
 			.selectAll()
@@ -38,9 +39,27 @@ export function createProductService(instance: FastifyInstance) {
 			.executeTakeFirstOrThrow();
 
 		return {
-			totalCount,
+			pageCount: Math.ceil(totalCount / query.limit),
 			products,
 		};
+	}
+
+	async function getById(
+		param: ProductParam,
+		log: FastifyBaseLogger,
+	): Promise<Product> {
+		const product = await kysely
+			.selectFrom("product")
+			.selectAll()
+			.where("id", "=", param.productId)
+			.executeTakeFirst();
+
+		if (!product) {
+			log.info("Update product failed: product not found");
+			throw httpErrors.notFound("Product not found");
+		}
+
+		return product;
 	}
 
 	async function create(
@@ -169,9 +188,41 @@ export function createProductService(instance: FastifyInstance) {
 			.executeTakeFirst();
 
 		if (!product) {
-			log.info("delete product failed: product not found");
+			log.info("Remove product failed: product not found");
 			throw httpErrors.notFound("Product not found");
 		}
+	}
+
+	async function removeAssemblyInstruction(
+		data: RemoveProductAssemblyInstructionRequest,
+		param: ProductParam,
+		log: FastifyBaseLogger,
+	) {
+		const product = await kysely
+			.selectFrom("product")
+			.select("id")
+			.where("id", "=", param.productId)
+			.executeTakeFirst();
+
+		if (!product) {
+			log.info("Remove product assembly instruction failed: product not found");
+			throw httpErrors.notFound("Product not found");
+		}
+
+		await fileUploaderManager.deleteFile(data.fileId);
+		await kysely
+			.updateTable("product")
+			.where((eb) =>
+				eb.and([
+					eb("id", "=", param.productId),
+					eb("assemblyInstructionFileId", "=", data.fileId),
+				]),
+			)
+			.set({
+				assemblyInstructionFileId: null,
+				assemblyInstructionFileUrl: null,
+			})
+			.execute();
 	}
 
 	function buildFilters(
@@ -187,9 +238,13 @@ export function createProductService(instance: FastifyInstance) {
 		if (query.search) {
 			ands.push(
 				eb.or([
-					eb("name", "ilike", `%${query.search}%`),
-					eb("description", "ilike", `%${query.search}%`),
-					eb("shortDescription", "ilike", `%${query.search}%`),
+					eb("product.name", "ilike", `${"%" + query.search + "%"}`),
+					eb("product.description", "ilike", `${"%" + query.search + "%"}`),
+					eb(
+						"product.shortDescription",
+						"ilike",
+						`${"%" + query.search + "%"}`,
+					),
 				]),
 			);
 		}
@@ -199,8 +254,10 @@ export function createProductService(instance: FastifyInstance) {
 
 	return {
 		getAll,
+		getById,
 		create,
 		update,
 		remove,
+		removeAssemblyInstruction,
 	};
 }

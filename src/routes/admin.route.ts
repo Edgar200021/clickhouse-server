@@ -34,11 +34,21 @@ import {
 	GetProductsRequestQuerySchema,
 	GetProductsResponseSchema,
 } from "../schemas/product/get-products.schema.js";
+import { ProductAdminSchema } from "../schemas/product/product.schema.js";
 import { ProductParamSchema } from "../schemas/product/product-param.schema.js";
+import { RemoveProductAssemblyInstructionRequestSchema } from "../schemas/product/remove-product-assembly-instruction.schema.js";
 import {
 	UpdateProductRequestSchema,
 	UpdateProductResponseSchema,
 } from "../schemas/product/update-product.schema.js";
+import {
+	CreateProductSkuRequestSchema,
+	CreateProductSkuResponseSchema,
+} from "../schemas/product-sku/create-product-sku.schema.js";
+import {
+	GetProductsSkusRequestQuerySchema,
+	GetProductsSkusResponseSchema,
+} from "../schemas/product-sku/get-products-skus.schema.js";
 import { BlockToggleRequestSchema } from "../schemas/user/block-toggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
@@ -54,6 +64,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		manufacturerService,
 		userService,
 		productService,
+		productSkuService,
 	} = fastify;
 
 	const multipartOnly = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -79,7 +90,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.post(
 		"/admin/categories",
 		{
-			preHandler: multipartOnly,
+			onRequest: multipartOnly,
 			preValidation: async (req) => {
 				if (
 					req.headers["content-type"] !== "application/x-www-form-urlencoded"
@@ -112,7 +123,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.patch(
 		"/admin/categories/:categoryId",
 		{
-			preHandler: multipartOnly,
+			onRequest: multipartOnly,
 			preValidation: async (req) => {
 				if (
 					req.headers["content-type"] !== "application/x-www-form-urlencoded"
@@ -301,16 +312,16 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const { totalCount, users } = await userService.getALl(req.query);
+			const { pageCount, users } = await userService.getALl(req.query);
 
 			reply.status(200).send({
 				status: "success",
 				data: {
-					totalCount,
-					users: users.map((u) => ({
-						...u,
-						createdAt: u.createdAt.toISOString(),
-						updatedAt: u.updatedAt.toISOString(),
+					pageCount,
+					users: users.map((p) => ({
+						...p,
+						createdAt: p.createdAt.toISOString(),
+						updatedAt: p.updatedAt.toISOString(),
 					})),
 				},
 			});
@@ -354,12 +365,12 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			const { totalCount, products } = await productService.getAll(req.query);
+			const { pageCount, products } = await productService.getAll(req.query);
 
 			reply.status(200).send({
 				status: "success",
 				data: {
-					totalCount,
+					pageCount,
 					products: products.map((u) => ({
 						...u,
 						createdAt: u.createdAt.toISOString(),
@@ -370,10 +381,36 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		},
 	);
 
+	fastify.get(
+		"/admin/products/:productId",
+		{
+			schema: {
+				params: ProductParamSchema,
+				response: {
+					200: SuccessResponseSchema(ProductAdminSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const product = await productService.getById(req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...product,
+					createdAt: product.createdAt.toISOString(),
+					updatedAt: product.updatedAt.toISOString(),
+				},
+			});
+		},
+	);
+
 	fastify.post(
 		"/admin/products",
 		{
-			preHandler: multipartOnly,
+			onRequest: multipartOnly,
 			preValidation: async (req) => {
 				if (
 					req.headers["content-type"] !== "application/x-www-form-urlencoded"
@@ -410,7 +447,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.patch(
 		"/admin/products/:productId",
 		{
-			preHandler: multipartOnly,
+			onRequest: multipartOnly,
 			preValidation: async (req) => {
 				if (
 					req.headers["content-type"] !== "application/x-www-form-urlencoded"
@@ -470,6 +507,130 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			reply.status(200).send({
 				status: "success",
 				data: null,
+			});
+		},
+	);
+
+	fastify.delete(
+		"/admin/products/:productId/assembly-instruction",
+		{
+			schema: {
+				body: RemoveProductAssemblyInstructionRequestSchema,
+				params: ProductParamSchema,
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			await productService.removeAssemblyInstruction(
+				req.body,
+				req.params,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/products-sku",
+		{
+			schema: {
+				querystring: GetProductsSkusRequestQuerySchema,
+				response: {
+					200: SuccessResponseSchema(GetProductsSkusResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const { pageCount, productsSkus } = await productSkuService.getAll(
+				req.query,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					pageCount,
+					productsSkus: productsSkus.map((u) => ({
+						...u,
+						packages: u.packages.map((p) => ({
+							...p,
+							createdAt: u.createdAt.toISOString(),
+							updatedAt: u.updatedAt.toISOString(),
+						})),
+						createdAt: u.createdAt.toISOString(),
+						updatedAt: u.updatedAt.toISOString(),
+						product: {
+							...u.product,
+							createdAt: u.product.createdAt.toISOString(),
+							updatedAt: u.product.updatedAt.toISOString(),
+						},
+					})),
+				},
+			});
+		},
+	);
+
+	fastify.post(
+		"/admin/products-sku",
+		{
+			onRequest: multipartOnly,
+			preValidation: async (req) => {
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+					const body: Record<string, unknown> = {};
+					for (const [key, value] of formData.entries()) {
+						if (body[key] && Array.isArray(body[key])) {
+							body[key].push(
+								key === "packages" ? JSON.parse(value as string) : value,
+							);
+						} else {
+							body[key] =
+								key === "images" || key === "packages"
+									? [key === "packages" ? JSON.parse(value as string) : value]
+									: value;
+						}
+					}
+
+					//@ts-expect-error...
+					req.body = body;
+				}
+			},
+			schema: {
+				body: CreateProductSkuRequestSchema,
+				consumes: ["multipart/form-data"],
+				response: {
+					201: SuccessResponseSchema(CreateProductSkuResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const productSku = await productSkuService.create(req.body, req.log);
+
+			reply.status(201).send({
+				status: "success",
+				data: {
+					...productSku,
+					packages: productSku.packages.map((p) => ({
+						...p,
+						createdAt: p.createdAt.toISOString(),
+						updatedAt: p.updatedAt.toISOString(),
+					})),
+					createdAt: productSku.createdAt.toISOString(),
+					updatedAt: productSku.updatedAt.toISOString(),
+				},
 			});
 		},
 	);

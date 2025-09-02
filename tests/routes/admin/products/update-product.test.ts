@@ -13,12 +13,7 @@ import type { Category } from "../../../../src/types/db/category.js";
 import { UserRole } from "../../../../src/types/db/db.js";
 import type { Manufacturer } from "../../../../src/types/db/manufacturer.js";
 import type { Product } from "../../../../src/types/db/product.js";
-import {
-	buildTestApp,
-	ImagePath,
-	PdfPath,
-	type WithSignIn,
-} from "../../../testApp.js";
+import { buildTestApp, ImagePath, type WithSignIn } from "../../../testApp.js";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -52,7 +47,7 @@ describe("Admin", () => {
 
 	describe("Update Product", () => {
 		it("Should return 200 status code when request is successfull", async () => {
-			const getProductsResponse = await testApp.withSignIn<
+			const updateProductRes = await testApp.withSignIn<
 				Parameters<typeof testApp.updateProduct>["1"][],
 				WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>
 			>(
@@ -67,7 +62,7 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(getProductsResponse.statusCode).toBe(200);
+			expect(updateProductRes.statusCode).toBe(200);
 		});
 
 		it("Should change product in database when request is successfull", async () => {
@@ -152,15 +147,12 @@ describe("Admin", () => {
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getManufacturerRes = await testApp.updateProduct(
-				{},
-				products[0].id,
-			);
-			expect(getManufacturerRes.statusCode).toBe(401);
+			const updateProductRes = await testApp.updateProduct({}, products[0].id);
+			expect(updateProductRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const getManufacturerRes = await testApp.withSignIn<
+			const updateProductRes = await testApp.withSignIn<
 				Parameters<typeof testApp.updateCategory>["1"][],
 				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
 			>(
@@ -170,7 +162,7 @@ describe("Admin", () => {
 					additionalArg: [products[0].id],
 				},
 			);
-			expect(getManufacturerRes.statusCode).toBe(403);
+			expect(updateProductRes.statusCode).toBe(403);
 		});
 
 		it("Should return 404 status code when category or manufacturer is not found", async () => {

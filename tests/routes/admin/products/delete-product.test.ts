@@ -29,7 +29,7 @@ describe("Admin", () => {
 
 	describe("Update Product", () => {
 		it("Should return 200 status code when request is successfull", async () => {
-			const getProductsResponse = await testApp.withSignIn<
+			const deleteProductRes = await testApp.withSignIn<
 				Parameters<typeof testApp.deleteProduct>["1"][],
 				WithSignIn<Parameters<typeof testApp.deleteProduct>["1"][]>
 			>(
@@ -41,7 +41,7 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(getProductsResponse.statusCode).toBe(200);
+			expect(deleteProductRes.statusCode).toBe(200);
 		});
 
 		it("Should change status is_deleted to true in database when request is successfull", async () => {
@@ -87,15 +87,12 @@ describe("Admin", () => {
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getManufacturerRes = await testApp.deleteProduct(
-				{},
-				products[0].id,
-			);
-			expect(getManufacturerRes.statusCode).toBe(401);
+			const deleteProductRes = await testApp.deleteProduct({}, products[0].id);
+			expect(deleteProductRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const getManufacturerRes = await testApp.withSignIn<
+			const deleteProductRes = await testApp.withSignIn<
 				Parameters<typeof testApp.deleteProduct>["1"][],
 				WithSignIn<Parameters<typeof testApp.deleteProduct>["1"][]>
 			>(
@@ -105,7 +102,7 @@ describe("Admin", () => {
 					additionalArg: [products[0].id],
 				},
 			);
-			expect(getManufacturerRes.statusCode).toBe(403);
+			expect(deleteProductRes.statusCode).toBe(403);
 		});
 	});
 });

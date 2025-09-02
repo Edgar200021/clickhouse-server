@@ -1,6 +1,6 @@
 import z from "zod";
 import { GetUsersDefaultLimit, GetUsersMaxLimit } from "../../const/zod.js";
-import { WithCountSchema } from "../base.schema.js";
+import { WithPageCountSchema } from "../base.schema.js";
 import { AdminUserSchema } from "./user.schema.js";
 
 export const GetUsersRequestQuerySchema = z.object({
@@ -21,7 +21,7 @@ export const GetUsersRequestQuerySchema = z.object({
 		.transform((val) => val === "true")
 		.optional(),
 });
-export const GetUsersResponseSchema = WithCountSchema(
+export const GetUsersResponseSchema = WithPageCountSchema(
 	"users",
 	z.array(AdminUserSchema),
 );

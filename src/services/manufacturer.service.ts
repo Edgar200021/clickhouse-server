@@ -1,15 +1,11 @@
-import { exec } from "node:child_process";
 import type { FastifyBaseLogger } from "fastify";
 import type { FastifyInstance } from "fastify/types/instance.js";
-import type { CreateManufacturerRequest } from "../schemas/manufacturer/create-manufacturer.schema.js";
-import {
-	type ManufacturerParam,
-	ManufacturerParamSchema,
-} from "../schemas/manufacturer/manufacturer-param.schema.js";
-import type { UpdateManufacturerRequest } from "../schemas/manufacturer/update-manufacturer.schema.js";
-import type { Manufacturer } from "../types/db/manufacturer.js";
-import { isDatabaseError } from "../types/db/error.js";
 import { DuplicateCode } from "../const/database.js";
+import type { CreateManufacturerRequest } from "../schemas/manufacturer/create-manufacturer.schema.js";
+import type { ManufacturerParam } from "../schemas/manufacturer/manufacturer-param.schema.js";
+import type { UpdateManufacturerRequest } from "../schemas/manufacturer/update-manufacturer.schema.js";
+import { isDatabaseError } from "../types/db/error.js";
+import type { Manufacturer } from "../types/db/manufacturer.js";
 
 export function createManufacturerService(instance: FastifyInstance) {
 	const { kysely, httpErrors } = instance;

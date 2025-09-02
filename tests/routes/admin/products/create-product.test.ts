@@ -56,7 +56,7 @@ describe("Admin", () => {
 
 	describe("Create Product", () => {
 		it("Should return 201 status code when request is successfull", async () => {
-			const getProductsResponse = await testApp.withSignIn(
+			const createProductRes = await testApp.withSignIn(
 				{ body: user },
 				{
 					fn: testApp.createProduct,
@@ -67,11 +67,11 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(getProductsResponse.statusCode).toBe(201);
+			expect(createProductRes.statusCode).toBe(201);
 		});
 
 		it("Should be saved into database when request is successfull", async () => {
-			const getProductsResponse = await testApp.withSignIn(
+			const createProductRes = await testApp.withSignIn(
 				{ body: user },
 				{
 					fn: testApp.createProduct,
@@ -85,7 +85,7 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			expect(getProductsResponse.statusCode).toBe(201);
+			expect(createProductRes.statusCode).toBe(201);
 
 			const dbProduct = await testApp.app.kysely
 				.selectFrom("product")
@@ -233,18 +233,18 @@ describe("Admin", () => {
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getManufacturerRes = await testApp.createProduct({});
-			expect(getManufacturerRes.statusCode).toBe(401);
+			const createProductRes = await testApp.createProduct({});
+			expect(createProductRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const getManufacturerRes = await testApp.withSignIn(
+			const createProductRes = await testApp.withSignIn(
 				{ body: user },
 				{
 					fn: testApp.createProduct,
 				},
 			);
-			expect(getManufacturerRes.statusCode).toBe(403);
+			expect(createProductRes.statusCode).toBe(403);
 		});
 
 		it("Should return 404 status code when category or manufacturer is not found", async () => {

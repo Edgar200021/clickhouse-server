@@ -16,8 +16,21 @@ export const ValidationErrorResponseSchema = z.object({
 	errors: z.record(z.string(), z.string()),
 });
 
-export const WithCountSchema = <T extends z.ZodTypeAny>(key: string, data: T) =>
+export const WithPageCountSchema = <T extends z.ZodTypeAny>(
+	key: string,
+	data: T,
+) =>
 	z.object({
-		totalCount: z.number().gte(0),
+		pageCount: z.number().gte(0),
 		[key]: data,
 	});
+
+export const GenericSchema = <O extends z.ZodObject, T extends z.ZodTypeAny>(
+	key: string,
+	obj: O,
+	data: T,
+) => {
+	return obj.extend({
+		[key]: data,
+	});
+};

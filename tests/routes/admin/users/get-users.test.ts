@@ -85,7 +85,7 @@ describe("Admin", () => {
 					status: "success";
 					data: {
 						totalCount: number;
-						users: z.infer<typeof AdminUserSchema>[];
+						users: z.Infer<typeof AdminUserSchema>[];
 					};
 				}>();
 
@@ -141,7 +141,7 @@ describe("Admin", () => {
 					status: "success";
 					data: {
 						totalCount: number;
-						users: z.infer<typeof AdminUserSchema>[];
+						users: z.Infer<typeof AdminUserSchema>[];
 					};
 				}>();
 

@@ -6,7 +6,7 @@ import {
 	ProductNameMaxLength,
 	ProductShortDescriptionMaxLength,
 } from "../../const/zod.js";
-import { ProductSchema } from "./product.schema.js";
+import { ProductAdminSchema } from "./product.schema.js";
 
 export const CreateProductRequestSchema = z.object({
 	name: z.string().trim().nonempty().max(ProductNameMaxLength),
@@ -29,6 +29,6 @@ export const CreateProductRequestSchema = z.object({
 	categoryId: z.coerce.number().positive(),
 	manufacturerId: z.coerce.number().positive(),
 });
-export const CreateProductResponseSchema = ProductSchema;
+export const CreateProductResponseSchema = ProductAdminSchema;
 
-export type CreateProductRequest = z.infer<typeof CreateProductRequestSchema>;
+export type CreateProductRequest = z.Infer<typeof CreateProductRequestSchema>;

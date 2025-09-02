@@ -10,7 +10,7 @@ import {
 import type { BlockToggleRequest } from "../schemas/user/block-toggle.schema.js";
 import type { GetUsersRequestQuery } from "../schemas/user/get-users.schema.js";
 import type { UserParam } from "../schemas/user/user-param.schema.js";
-import type { WithCount } from "../types/base.js";
+import type { WithPageCount } from "../types/base.js";
 import { type DB, UserRole } from "../types/db/db.js";
 import type { User } from "../types/db/user.js";
 
@@ -19,7 +19,7 @@ export function createUserService(instance: FastifyInstance) {
 
 	async function getALl(
 		query: GetUsersRequestQuery,
-	): Promise<WithCount<Omit<User, "password" | "role">[], "users">> {
+	): Promise<WithPageCount<Omit<User, "password" | "role">[], "users">> {
 		const users = await kysely
 			.selectFrom("users")
 			.select([
@@ -43,7 +43,7 @@ export function createUserService(instance: FastifyInstance) {
 			.where((eb) => buildFilters(query, eb))
 			.executeTakeFirstOrThrow();
 
-		return { totalCount, users };
+		return { pageCount: Math.ceil(totalCount / query.limit), users };
 	}
 
 	async function blockToggle(

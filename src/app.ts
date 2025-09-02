@@ -67,6 +67,7 @@ export async function buildApp(config: Config) {
 		}
 
 		if (isResponseSerializationError(err)) {
+			console.log(err);
 			app.log.error(
 				{
 					name: err.name,

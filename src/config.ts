@@ -100,7 +100,7 @@ export const configSchema = z.object({
 	}),
 });
 
-export type Config = z.infer<typeof configSchema>;
+export type Config = z.Infer<typeof configSchema>;
 
 export function setupConfig(): Config {
 	const config = configSchema.parse({

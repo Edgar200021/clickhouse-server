@@ -13,4 +13,4 @@ export const ResetPasswordRequestSchema = z.object({
 });
 export const ResetPasswordResponseSchema = z.string();
 
-export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
+export type ResetPasswordRequest = z.Infer<typeof ResetPasswordRequestSchema>;

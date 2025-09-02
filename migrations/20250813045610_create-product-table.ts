@@ -125,10 +125,9 @@ export async function up(db: Kysely<any>): Promise<void> {
   CREATE UNIQUE INDEX product_sku_unique_attrs ON product_sku (
     product_id,
     (attributes -> 'color'),
-    (attributes -> 'length'),
-    (attributes -> 'depth'),
     (attributes -> 'height'),
-    (attributes -> 'width')
+    (attributes -> 'width'),
+    (attributes -> 'length')
   )`.execute(db);
 }
 

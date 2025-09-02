@@ -141,18 +141,18 @@ describe("Admin", () => {
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getManufacturerRes = await testApp.getProducts({});
-			expect(getManufacturerRes.statusCode).toBe(401);
+			const getProductsRes = await testApp.getProducts({});
+			expect(getProductsRes.statusCode).toBe(401);
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const getManufacturerRes = await testApp.withSignIn(
+			const getProductsRes = await testApp.withSignIn(
 				{ body: user },
 				{
 					fn: testApp.getProducts,
 				},
 			);
-			expect(getManufacturerRes.statusCode).toBe(403);
+			expect(getProductsRes.statusCode).toBe(403);
 		});
 	});
 });

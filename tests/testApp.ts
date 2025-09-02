@@ -57,9 +57,12 @@ interface TestApp {
 	getUsers: typeof getUsers;
 	blockToggle: typeof blockToggle;
 	getProducts: typeof getProducts;
+	getProduct: typeof getProduct;
 	createProduct: typeof createProduct;
 	updateProduct: typeof updateProduct;
 	deleteProduct: typeof deleteProduct;
+	getProductsSkus: typeof getProductsSkus;
+	createProductSku: typeof createProductSku;
 }
 
 async function signUp(
@@ -364,6 +367,18 @@ async function getProducts(
 	});
 }
 
+async function getProduct(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productId?: Product["id"],
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/products${productId ? `/${productId}` : ""}`,
+		...options,
+	});
+}
+
 async function createProduct(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
@@ -395,6 +410,28 @@ async function deleteProduct(
 	return await this.app.inject({
 		method: "DELETE",
 		url: `/api/v1/admin/products${productId ? `/${productId}` : ""}`,
+		...options,
+	});
+}
+
+async function getProductsSkus(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/products-sku`,
+		...options,
+	});
+}
+
+async function createProductSku(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/admin/products-sku`,
 		...options,
 	});
 }
@@ -448,8 +485,11 @@ export async function buildTestApp(): Promise<TestApp> {
 		getUsers,
 		blockToggle,
 		getProducts,
+		getProduct,
 		createProduct,
 		updateProduct,
 		deleteProduct,
+		getProductsSkus,
+		createProductSku,
 	};
 }
