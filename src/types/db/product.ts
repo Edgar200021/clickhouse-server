@@ -1,4 +1,4 @@
-import type { Selectable } from "kysely";
+import type { Selectable, Updateable } from "kysely";
 import type {
 	Product as Pr,
 	ProductSku as Prs,
@@ -10,3 +10,5 @@ export type Product = Selectable<Pr>;
 export type ProductSku = Selectable<Prs>;
 export type ProductSkuImages = Selectable<Prsi>;
 export type ProductSkuPackage = Selectable<Prsp>;
+
+export type UpdateProductSku = Updateable<Prs>;

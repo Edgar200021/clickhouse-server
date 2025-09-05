@@ -55,7 +55,7 @@ export function createProductService(instance: FastifyInstance) {
 			.executeTakeFirst();
 
 		if (!product) {
-			log.info("Update product failed: product not found");
+			log.info("Get product failed: product not found");
 			throw httpErrors.notFound("Product not found");
 		}
 

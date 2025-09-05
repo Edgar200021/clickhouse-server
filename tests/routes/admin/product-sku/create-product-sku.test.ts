@@ -13,6 +13,7 @@ import type { ProductSkuAttributes } from "../../../../src/schemas/product-sku/p
 import { Currency, UserRole } from "../../../../src/types/db/db.js";
 import type { Product, ProductSku } from "../../../../src/types/db/product.js";
 import { buildTestApp, ImagePath } from "../../../testApp.js";
+import { he } from "zod/v4/locales";
 
 describe("Admin", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
@@ -94,6 +95,63 @@ describe("Admin", () => {
 
 			expect(createProductSkuRes.statusCode).toBe(201);
 		});
+
+		it("Should save into database when request is successful", async () => {
+          const width = faker.number.int({ min: 1, max: 2000 });
+          const length = faker.number.int({ min: 1, max: 2000 });
+          const height = faker.number.int({ min: 1, max: 2000 });
+          const color = faker.color.human();
+
+          const createProductSkuRes = await testApp.withSignIn(
+            { body: user },
+            {
+              fn: testApp.createProductSku,
+              args: {
+                ...formAutoContent({
+                  productId: products[0].id,
+                  quantity: faker.number.int({ min: 1, max: 2000 }),
+                  width,
+                  length,
+                  height,
+                  color,
+                  currency: Currency.Rub,
+                  price: faker.number.int({ min: 1, max: 2000 }),
+                  images: [createReadStream(ImagePath)],
+                  packages: Array.from({ length: ProductSkuPackagesMaxLength }, () =>
+                    JSON.stringify({
+                      length: faker.number.int({ min: 1, max: 2000 }),
+                      quantity: faker.number.int({ min: 1, max: 2000 }),
+                      width: faker.number.int({ min: 1, max: 2000 }),
+                      height: faker.number.int({ min: 1, max: 2000 }),
+                      weight: faker.number.int({ min: 1, max: 2000 }),
+                    })
+                  )
+                }),
+              },
+            },
+            UserRole.Admin
+          );
+
+          expect(createProductSkuRes.statusCode).toBe(201);
+
+          const dbProductSku = await testApp.app.kysely
+            .selectFrom("productSku")
+            .where("productId", "=", products[0].id)
+            .selectAll()
+            .where((eb) =>
+              eb.and([
+                sql<boolean>`product_sku.attributes -> 'width' = ${width}`,
+                sql<boolean>`product_sku.attributes -> 'length' = ${length}`,
+                sql<boolean>`product_sku.attributes -> 'height' = ${height}`,
+                sql<boolean>`product_sku.attributes -> 'color' = ${color}`,
+              ])
+            )
+            .executeTakeFirst();
+
+          expect(dbProductSku).toBeDefined()
+
+        });
+
 
 		it("Should return 400 status code when data is invalid", async () => {
 			const testCases = [

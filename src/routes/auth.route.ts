@@ -102,7 +102,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 			},
 		},
 		async (req, reply) => {
-			console.log(req.query);
 			const { url, cookieState } = authService.oauth2SignInUrl(
 				req,
 				req.query,

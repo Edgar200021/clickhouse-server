@@ -9,11 +9,17 @@ import {
 	sql,
 } from "kysely";
 import { DuplicateCode, ForeignKeyConstraintCode } from "../const/database.js";
+import {
+	ProductSkuImagesMaxLength,
+	ProductSkuPackagesMaxLength,
+} from "../const/zod.js";
 import type { CreateProductSkuRequest } from "../schemas/product-sku/create-product-sku.schema.js";
 import type { GetProductsSkusRequestQuery } from "../schemas/product-sku/get-products-skus.schema.js";
 import type { ProductSkuAttributes } from "../schemas/product-sku/product-sku.schema.js";
 import type { ProductSkuParam } from "../schemas/product-sku/product-sku-param.schema.js";
+import type { UpdateProductSkuRequest } from "../schemas/product-sku/update-product-sku.schema.js";
 import type { Combined, WithPageCount } from "../types/base.js";
+import type { FileUploadResponse } from "../types/cloudinary.js";
 import { type DB, UserRole } from "../types/db/db.js";
 import { isDatabaseError } from "../types/db/error.js";
 import type {
@@ -21,7 +27,31 @@ import type {
 	ProductSku,
 	ProductSkuImages,
 	ProductSkuPackage,
+	UpdateProductSku,
 } from "../types/db/product.js";
+
+type GetOneResult<T extends UserRole> = T extends UserRole.Admin
+	? Combined<
+			Omit<ProductSku, "productId" | "attributes"> & {
+				attributes: ProductSkuAttributes;
+				images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
+				packages: Omit<ProductSkuPackage, "productSkuId">[];
+			},
+			Product,
+			"product"
+		>
+	: Combined<
+			Omit<
+				ProductSku,
+				"productId" | "attributes" | "createdAt" | "updatedAt"
+			> & {
+				attributes: ProductSkuAttributes;
+				images: Pick<ProductSkuImages, "imageId" | "imageUrl">[];
+				packages: Omit<ProductSkuPackage, "productSkuId">[];
+			},
+			Omit<Product, "id" | "createdAt" | "updatedAt" | "isDeleted">,
+			"product"
+		>;
 
 export function createProductSkuService(instance: FastifyInstance) {
 	const { kysely, httpErrors, fileUploaderManager } = instance;
@@ -31,7 +61,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 			Combined<
 				Omit<ProductSku, "productId" | "attributes"> & {
 					attributes: ProductSkuAttributes;
-					images: Pick<ProductSkuImages, "imageId" | "imageUrl">[];
+					images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
 					packages: Omit<ProductSkuPackage, "productSkuId">[];
 				},
 				Product,
@@ -86,36 +116,21 @@ export function createProductSkuService(instance: FastifyInstance) {
 		};
 	}
 
-	async function getOne(
+	async function getOne<T extends UserRole>(
 		param: ProductSkuParam,
-		type: UserRole.Admin,
+		type: T,
 		log: FastifyBaseLogger,
-	): Promise<
-		Combined<
-			Omit<ProductSku, "productId" | "attributes"> & {
-				attributes: ProductSkuAttributes;
-				images: Pick<ProductSkuImages, "imageId" | "imageUrl">[];
-				packages: Omit<ProductSkuPackage, "productSkuId">[];
-			},
-			Product,
-			"product"
-		>
-	>;
-	async function getOne(
-		param: ProductSkuParam,
-		type: UserRole.Regular,
-		log: FastifyBaseLogger,
-	): Promise<null>;
-	async function getOne(
-		param: ProductSkuParam,
-		type: UserRole,
-		log: FastifyBaseLogger,
-	) {
-		if (type === UserRole.Admin) {
-			const productSku = await buildAdminProductSku()
-				.where("productSku.id", "=", param.productSkuId)
-				.executeTakeFirstOrThrow();
+	): Promise<GetOneResult<T>> {
+		const productSku = await buildAdminProductSku()
+			.where("productSku.id", "=", param.productSkuId)
+			.executeTakeFirst();
 
+		if (!productSku) {
+			log.info("Get product sku failed: product sku not found");
+			throw httpErrors.notFound("Product Sku not found");
+		}
+
+		if (type === UserRole.Admin) {
 			return {
 				id: productSku.id,
 				createdAt: productSku.createdAt,
@@ -142,36 +157,56 @@ export function createProductSkuService(instance: FastifyInstance) {
 					categoryId: productSku.categoryId,
 					manufacturerId: productSku.manufacturerId,
 				},
-			};
+			} as GetOneResult<T>;
 		}
 
-		return null;
+		return {
+			id: productSku.id,
+			currency: productSku.currency,
+			price: productSku.price,
+			salePrice: productSku.salePrice,
+			quantity: productSku.quantity,
+			sku: productSku.sku,
+			attributes: productSku.attrs,
+			images: productSku.images,
+			packages: productSku.packages,
+			product: {
+				name: productSku.name,
+				description: productSku.description,
+				shortDescription: productSku.shortDescription,
+				materialsAndCare: productSku.materialsAndCare,
+				assemblyInstructionFileId: productSku.assemblyInstructionFileId,
+				assemblyInstructionFileUrl: productSku.assemblyInstructionFileUrl,
+				categoryId: productSku.categoryId,
+				manufacturerId: productSku.manufacturerId,
+			},
+		} as GetOneResult<T>;
 	}
 
 	async function create(
-		body: CreateProductSkuRequest,
+		data: CreateProductSkuRequest,
 		log: FastifyBaseLogger,
 	): Promise<
 		Omit<ProductSku, "attributes"> & {
 			attributes: ProductSkuAttributes;
-			images: Pick<ProductSkuImages, "imageId" | "imageUrl">[];
+			images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
 			packages: Omit<ProductSkuPackage, "productSkuId">[];
 		}
 	> {
 		try {
 			const { attributeKeys, attributeValues } = buildAttributes(
-				body as ProductSkuAttributes,
+				data as ProductSkuAttributes,
 			);
 
 			const product = await kysely.transaction().execute(async (trx) => {
 				const product = await trx
 					.insertInto("productSku")
 					.values({
-						productId: body.productId,
+						productId: data.productId,
 						sku: randomUUID(),
-						price: body.price,
-						salePrice: body.salePrice,
-						quantity: body.quantity,
+						price: data.price,
+						salePrice: data.salePrice,
+						quantity: data.quantity,
 						attributes: sql`
       hstore(
         array[${sql.join(attributeKeys)}],
@@ -196,12 +231,13 @@ export function createProductSkuService(instance: FastifyInstance) {
 					.executeTakeFirstOrThrow();
 
 				const uploadRes = await Promise.all(
-					body.images.map(
+					data.images.map(
 						async (file) => await fileUploaderManager.upload(file),
 					),
 				);
 
-				const [_, packages] = await Promise.all([
+
+				const [images, packages] = await Promise.all([
 					trx
 						.insertInto("productSkuImages")
 						.values(
@@ -211,13 +247,14 @@ export function createProductSkuService(instance: FastifyInstance) {
 								productSkuId: product.id,
 							})),
 						)
+						.returning(["id", "imageId", "imageUrl"])
 						.execute(),
-					...(body.packages
+					...(data.packages
 						? [
 								trx
 									.insertInto("productSkuPackage")
 									.values(
-										body.packages.map((pkg) => ({
+										data.packages.map((pkg) => ({
 											productSkuId: product.id,
 											...pkg,
 										})),
@@ -228,11 +265,14 @@ export function createProductSkuService(instance: FastifyInstance) {
 						: []),
 				]);
 
+
+
 				return {
 					...product,
-					images: uploadRes.map((res) => ({
-						imageId: res.fileId,
-						imageUrl: res.fileUrl,
+					images: images.map((image) => ({
+						id: image.id,
+						imageId: image.imageId,
+						imageUrl: image.imageUrl,
 					})),
 					packages: (packages ?? []).map((p) => ({
 						id: p.id,
@@ -249,37 +289,241 @@ export function createProductSkuService(instance: FastifyInstance) {
 
 			return product;
 		} catch (err) {
-			if (isDatabaseError(err)) {
-				let logMsg = "";
-				let clientMsg = "";
+			throw handleError(err, data, log);
+		}
+	}
 
-				switch (err.code) {
-					case DuplicateCode:
-						if (err.table === "product_sku_package") {
-							logMsg = "Duplicate packages";
-							clientMsg = "Duplicate packages";
-						} else {
-							logMsg = "Create product SKU failed: duplicate attributes";
-							clientMsg = "Product with these characteristics already exists";
-						}
-						break;
+	async function update(
+		data: UpdateProductSkuRequest,
+		param: ProductSkuParam,
+		log: FastifyBaseLogger,
+	): Promise<
+		Omit<ProductSku, "attributes"> & {
+			attributes: ProductSkuAttributes;
+			images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
+			packages: Omit<ProductSkuPackage, "productSkuId">[];
+		}
+	> {
+		try {
+			const productSku = await buildAdminProductSku()
+				.where("productSku.id", "=", param.productSkuId)
+				.executeTakeFirst();
 
-					case ForeignKeyConstraintCode:
-						logMsg = "Product doesn't exist";
-						clientMsg = "Product doesn't exist";
-						break;
-				}
+			if (!productSku) {
+				log.info("Update product sku failed: product sku not found");
+				throw httpErrors.notFound("Product Sku not found");
+			}
 
-				if (logMsg) {
-					log.info({ body }, logMsg);
-					throw err.code === ForeignKeyConstraintCode
-						? httpErrors.notFound(clientMsg)
-						: httpErrors.badRequest(clientMsg);
+			const updateData: Partial<
+				Omit<
+					UpdateProductSku,
+					"attributes" | "sku" | "updatedAt" | "createdAt" | "id"
+				>
+			> = Object.entries(data)
+				.filter(
+					([key]) =>
+						![
+							"width",
+							"height",
+							"length",
+							"color",
+							"weight",
+							"images",
+							"packages",
+						].includes(key),
+				)
+				.reduce((acc, [key, value]) => {
+					const typedKey = key as keyof UpdateProductSkuRequest;
+
+					if (productSku[typedKey] !== value) {
+						acc[typedKey] = value;
+					}
+
+					return acc;
+				}, {});
+
+			if (
+				!updateData.price &&
+				updateData.salePrice &&
+				updateData.salePrice > productSku.price
+			) {
+				log.info(
+					"Update product SKU failed: sale price must be less than the regular price",
+				);
+				throw httpErrors.badRequest(
+					"Sale price must be less than the regular price",
+				);
+			}
+
+			const attributes: ProductSkuAttributes = productSku.attrs;
+
+			for (const key of Object.keys(attributes)) {
+				if (data[key] && data[key] != attributes[key]) {
+					attributes[key] = data[key];
 				}
 			}
 
-			throw err;
+			const buildedAttributes = attributes
+				? buildAttributes({
+						...attributes,
+						...Object.fromEntries(
+							Object.entries(productSku.attributes).filter(
+								([key]) => !Object.keys(attributes).includes(key),
+							),
+						),
+					})
+				: undefined;
+
+			if (
+				!Object.keys(updateData).length &&
+				!buildedAttributes &&
+				!data.images?.length &&
+				!data.packages?.length
+			) {
+				log.info("Update product SKU failed: no changes in request");
+				throw httpErrors.badRequest("No changes detected in update request");
+			}
+
+			const product = await kysely.transaction().execute(async (trx) => {
+				const product = await trx
+					.updateTable("productSku")
+					.set({
+						...updateData,
+						...(buildedAttributes
+							? {
+									attributes: sql`
+			   hstore(
+			     array[${sql.join(buildedAttributes.attributeKeys)}],
+			     array[${sql.join(buildedAttributes.attributeValues)}]
+			   )
+			 `,
+								}
+							: {}),
+					})
+					.returning([
+						"id",
+						"productId",
+						"sku",
+						"currency",
+						"price",
+						"salePrice",
+						"quantity",
+						sql<ProductSkuAttributes>`hstore_to_json(product_sku.attributes)`.as(
+							"attributes",
+						),
+						"createdAt",
+						"updatedAt",
+					])
+					.where("id", "=", param.productSkuId)
+					.executeTakeFirstOrThrow();
+
+				const uploadResult: FileUploadResponse[] = data?.images
+					? await Promise.all(
+							data?.images
+								?.slice(
+									0,
+									ProductSkuImagesMaxLength - (productSku.images?.length ?? 0),
+								)
+								.map(async (image) => await fileUploaderManager.upload(image)),
+						)
+					: [];
+
+				const [images, packages] = await Promise.all([
+					uploadResult.length
+						? trx
+								.insertInto("productSkuImages")
+								.values(
+									uploadResult.map((res) => ({
+										imageId: res.fileId,
+										imageUrl: res.fileUrl,
+										productSkuId: product.id,
+									})),
+								)
+								.returning(["id", "imageId", "imageUrl"])
+								.execute()
+						: Promise.resolve([]),
+
+					data.packages?.length
+						? trx
+								.insertInto("productSkuPackage")
+								.values(
+									data.packages
+										.slice(
+											0,
+											ProductSkuPackagesMaxLength -
+												(productSku.packages?.length ?? 0),
+										)
+										.map((pkg) => ({
+											productSkuId: product.id,
+											...pkg,
+										})),
+								)
+								.returningAll()
+								.execute()
+						: Promise.resolve([]),
+				]);
+
+				return {
+					...product,
+					images: [...(productSku.images ?? []), ...images].map((image) => ({
+						id: image.id,
+						imageId: image.imageId,
+						imageUrl: image.imageUrl,
+					})),
+					packages: [...(productSku.packages ?? []), ...(packages ?? [])].map(
+						(p) => ({
+							id: p.id,
+							createdAt: p.createdAt,
+							updatedAt: p.updatedAt,
+							quantity: p.quantity,
+							width: p.width,
+							height: p.height,
+							length: p.length,
+							weight: p.weight,
+						}),
+					),
+				};
+			});
+
+			return product;
+		} catch (err) {
+			throw handleError(err, data, log);
 		}
+	}
+
+	async function deleteImage(
+		param: Combined<ProductSkuParam, ProductSkuImages["id"], "imageId">,
+		log: FastifyBaseLogger,
+	) {
+		const countResult = await kysely
+			.selectFrom("productSkuImages")
+			.select(sql<number>`COUNT(*)::INTEGER`.as("count"))
+			.where("productSkuId", "=", param.productSkuId)
+			.groupBy("productSkuId")
+			.executeTakeFirst();
+
+		if (!countResult) {
+			throw httpErrors.internalServerError("Failed to count images");
+		}
+
+		if (countResult.count === 1) {
+			log.info("Delete image failed: product SKU must have at least one image");
+			throw httpErrors.badRequest("Product must have at least one image");
+		}
+
+		const image = await kysely
+			.deleteFrom("productSkuImages")
+			.where("productSkuId", "=", param.productSkuId)
+			.where("id", "=", param.imageId)
+			.returning(["id", "imageId"])
+			.executeTakeFirst();
+
+		if (!image) {
+			log.info("Delete product sku image failed: image not found");
+			throw httpErrors.notFound("Image not found");
+		}
+
+		await fileUploaderManager.deleteFile(image.imageId);
 	}
 
 	function buildAdminProductSku() {
@@ -309,10 +553,11 @@ export function createProductSkuService(instance: FastifyInstance) {
 				eb
 					.selectFrom("productSkuImages")
 					.select(
-						sql<Pick<ProductSkuImages, "imageId" | "imageUrl">[]>`
+						sql<Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[]>`
 			COALESCE(
 			  json_agg(
 			    json_build_object(
+						'id', product_sku_images.id,
 			      'imageId', product_sku_images.image_id,
 			      'imageUrl', product_sku_images.image_url
 			    )
@@ -412,5 +657,42 @@ export function createProductSkuService(instance: FastifyInstance) {
 		};
 	}
 
-	return { getAll, create };
+	function handleError(
+		err: unknown,
+		data: unknown,
+		log: FastifyBaseLogger,
+	): Error | unknown {
+		if (isDatabaseError(err)) {
+			let logMsg = "";
+			let clientMsg = "";
+
+			switch (err.code) {
+				case DuplicateCode:
+					if (err.table === "product_sku_package") {
+						logMsg = "Duplicate packages";
+						clientMsg = "Duplicate packages";
+					} else {
+						logMsg = "Create product SKU failed: duplicate attributes";
+						clientMsg = "Product with these characteristics already exists";
+					}
+					break;
+
+				case ForeignKeyConstraintCode:
+					logMsg = "Product doesn't exist";
+					clientMsg = "Product doesn't exist";
+					break;
+			}
+
+			if (logMsg) {
+				log.info({ data }, logMsg);
+				return err.code === ForeignKeyConstraintCode
+					? httpErrors.notFound(clientMsg)
+					: httpErrors.badRequest(clientMsg);
+			}
+		}
+
+		return err;
+	}
+
+	return { getAll, getOne, create, update, deleteImage };
 }

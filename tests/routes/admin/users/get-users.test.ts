@@ -106,8 +106,6 @@ describe("Admin", () => {
 
 		it("Should filter users by search (case-insensitive, substring)", async () => {
 			const firstNonAdmin = dbUsers.find((u) => u.role !== UserRole.Admin);
-			console.log("DB USERS", "\n\n\n\n", dbUsers);
-			console.log("FIRST NON ADMIN", firstNonAdmin);
 			if (!firstNonAdmin) throw new Error("No non-admin user found for test");
 
 			const email = firstNonAdmin.email;

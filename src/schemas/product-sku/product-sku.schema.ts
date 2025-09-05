@@ -2,6 +2,7 @@ import z from "zod";
 import { Currency } from "../../types/db/db.js";
 
 export const ProductSkuImageSchema = z.object({
+	id: z.coerce.number(),
 	imageId: z.string(),
 	imageUrl: z.string(),
 });

@@ -4,6 +4,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import z from "zod";
 import {
 	ErrorResponseSchema,
+	GenericSchema,
 	SuccessResponseSchema,
 	ValidationErrorResponseSchema,
 } from "../schemas/base.schema.js";
@@ -49,6 +50,12 @@ import {
 	GetProductsSkusRequestQuerySchema,
 	GetProductsSkusResponseSchema,
 } from "../schemas/product-sku/get-products-skus.schema.js";
+import { ProductSkuAdminSchema } from "../schemas/product-sku/product-sku.schema.js";
+import { ProductSkuParamSchema } from "../schemas/product-sku/product-sku-param.schema.js";
+import {
+	UpdateProductSkuRequestSchema,
+	UpdateProductSkuResponseSchema,
+} from "../schemas/product-sku/update-product-sku.schema.js";
 import { BlockToggleRequestSchema } from "../schemas/user/block-toggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
@@ -561,19 +568,61 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					pageCount,
 					productsSkus: productsSkus.map((u) => ({
 						...u,
-						packages: u.packages.map((p) => ({
-							...p,
-							createdAt: u.createdAt.toISOString(),
-							updatedAt: u.updatedAt.toISOString(),
-						})),
 						createdAt: u.createdAt.toISOString(),
 						updatedAt: u.updatedAt.toISOString(),
+						packages: u.packages.map((p) => ({
+							...p,
+							createdAt: new Date(p.createdAt).toISOString(),
+							updatedAt: new Date(p.updatedAt).toISOString(),
+						})),
 						product: {
 							...u.product,
 							createdAt: u.product.createdAt.toISOString(),
 							updatedAt: u.product.updatedAt.toISOString(),
 						},
 					})),
+				},
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/products-sku/:productSkuId",
+		{
+			schema: {
+				params: ProductSkuParamSchema,
+				response: {
+					200: SuccessResponseSchema(
+						GenericSchema("product", ProductSkuAdminSchema, ProductAdminSchema),
+					),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const productSku = await productSkuService.getOne(
+				req.params,
+				UserRole.Admin,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...productSku,
+					packages: productSku.packages.map((p) => ({
+						...p,
+						createdAt: new Date(p.createdAt).toISOString(),
+						updatedAt: new Date(p.updatedAt).toISOString(),
+					})),
+					createdAt: productSku.createdAt.toISOString(),
+					updatedAt: productSku.updatedAt.toISOString(),
+					product: {
+						...productSku.product,
+						createdAt: productSku.product.createdAt.toISOString(),
+						updatedAt: productSku.product.updatedAt.toISOString(),
+					},
 				},
 			});
 		},
@@ -625,12 +674,112 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					...productSku,
 					packages: productSku.packages.map((p) => ({
 						...p,
-						createdAt: p.createdAt.toISOString(),
-						updatedAt: p.updatedAt.toISOString(),
+						createdAt: new Date(p.createdAt).toISOString(),
+						updatedAt: new Date(p.updatedAt).toISOString(),
 					})),
 					createdAt: productSku.createdAt.toISOString(),
 					updatedAt: productSku.updatedAt.toISOString(),
 				},
+			});
+		},
+	);
+
+	fastify.patch(
+		"/admin/products-sku/:productSkuId",
+		{
+			onRequest: multipartOnly,
+			preValidation: async (req) => {
+				if (
+					req.headers["content-type"] !== "application/x-www-form-urlencoded"
+				) {
+					const formData = await req.formData();
+
+					const body: Record<string, unknown> = {};
+					for (const [key, value] of formData.entries()) {
+						if (body[key] && Array.isArray(body[key])) {
+							body[key].push(
+								key === "packages" ? JSON.parse(value as string) : value,
+							);
+						} else {
+							body[key] =
+								key === "images" || key === "packages"
+									? [key === "packages" ? JSON.parse(value as string) : value]
+									: value;
+						}
+					}
+
+					req.body = body;
+				}
+
+				if (req.body.packages) {
+					if (!Array.isArray(req.body.packages)) {
+						req.body.packages = [req.body.packages];
+					}
+					req.body.packages = req.body.packages.map((pkg) => {
+						return JSON.parse(pkg);
+					});
+				}
+			},
+			schema: {
+				params: ProductSkuParamSchema,
+				body: UpdateProductSkuRequestSchema,
+				consumes: ["multipart/form-data"],
+				response: {
+					200: SuccessResponseSchema(UpdateProductSkuResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			if (Object.keys(req.body).length === 0) {
+				throw httpErrors.badRequest("Request body is empty");
+			}
+
+			const productSku = await productSkuService.update(
+				req.body,
+				req.params,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...productSku,
+					packages: productSku.packages.map((p) => ({
+						...p,
+						createdAt: new Date(p.createdAt).toISOString(),
+						updatedAt: new Date(p.updatedAt).toISOString(),
+					})),
+					createdAt: productSku.createdAt.toISOString(),
+					updatedAt: productSku.updatedAt.toISOString(),
+				},
+			});
+		},
+	);
+
+	fastify.delete(
+		"/admin/products-sku/:productSkuId/images/:imageId",
+		{
+			schema: {
+				params: GenericSchema(
+					"imageId",
+					ProductSkuParamSchema,
+					z.coerce.number().positive(),
+				),
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			await productSkuService.deleteImage(req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
 			});
 		},
 	);

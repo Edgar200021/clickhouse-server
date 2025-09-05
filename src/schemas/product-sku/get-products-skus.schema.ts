@@ -39,6 +39,7 @@ export const GetProductsSkusRequestQuerySchema = z
 
 		return true;
 	});
+
 export const GetProductsSkusResponseSchema = WithPageCountSchema(
 	"productsSkus",
 	z.array(GenericSchema("product", ProductSkuAdminSchema, ProductAdminSchema)),

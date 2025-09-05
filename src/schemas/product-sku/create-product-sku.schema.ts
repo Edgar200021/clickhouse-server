@@ -22,7 +22,13 @@ export const CreateProductSkuRequestSchema = z
 		width: z.coerce.number().positive(),
 		height: z.coerce.number().positive(),
 		length: z.coerce.number().positive(),
-		color: z.string().trim().nonempty(),
+		color: z
+			.string()
+			.trim()
+			.nonempty()
+			.refine((val) => Number.isNaN(Number(val)), {
+				message: "Цвет не может быть числом",
+			}),
 		packages: ProductSkuPackageSchema.array()
 			.min(ProductSkuPackagesMinLength)
 			.max(ProductSkuPackagesMaxLength)

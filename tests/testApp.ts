@@ -15,7 +15,7 @@ import { VerificationPrefix } from "../src/const/redis.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
-import type { Product } from "../src/types/db/product.js";
+import type { Product, ProductSku } from "../src/types/db/product.js";
 import type { User } from "../src/types/db/user.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
@@ -62,7 +62,9 @@ interface TestApp {
 	updateProduct: typeof updateProduct;
 	deleteProduct: typeof deleteProduct;
 	getProductsSkus: typeof getProductsSkus;
+	getProductSku: typeof getProductSku;
 	createProductSku: typeof createProductSku;
+	updateProductSku: typeof updateProductSku;
 }
 
 async function signUp(
@@ -425,6 +427,18 @@ async function getProductsSkus(
 	});
 }
 
+async function getProductSku(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productSkuId?: ProductSku["id"],
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/products-sku/${productSkuId}`,
+		...options,
+	});
+}
+
 async function createProductSku(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
@@ -432,6 +446,18 @@ async function createProductSku(
 	return await this.app.inject({
 		method: "POST",
 		url: `/api/v1/admin/products-sku`,
+		...options,
+	});
+}
+
+async function updateProductSku(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productSkuId?: ProductSku["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/products-sku/${productSkuId}`,
 		...options,
 	});
 }
@@ -490,6 +516,8 @@ export async function buildTestApp(): Promise<TestApp> {
 		updateProduct,
 		deleteProduct,
 		getProductsSkus,
+		getProductSku,
 		createProductSku,
+		updateProductSku,
 	};
 }
