@@ -1,7 +1,6 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import type z from "zod";
-import { fi } from "zod/v4/locales";
 import {
 	GetUsersMaxLimit,
 	SignUpPasswordMinLength,
@@ -38,29 +37,51 @@ describe("Admin", () => {
 		it("Should return 200 status code when request is successfull", async () => {
 			const getUsersRes = await testApp.withSignIn(
 				{ body: user },
-				{ fn: testApp.getUsers },
+				{
+					fn: testApp.getUsers,
+					args: {
+						query: {
+							limit:
+								dbUsers.length <= GetUsersMaxLimit
+									? dbUsers.length
+									: GetUsersMaxLimit,
+						} as unknown as Record<string, string>,
+					},
+				},
 				UserRole.Admin,
 			);
 			const {
-				data: { totalCount, users },
+				data: { users },
 			} = getUsersRes.json<{
 				status: "success";
-				data: { totalCount: number; users: z.Infer<typeof AdminUserSchema>[] };
+				data: { pageCount: number; users: z.Infer<typeof AdminUserSchema>[] };
 			}>();
 
 			expect(getUsersRes.statusCode).toBe(200);
-			expect(totalCount).toBe(
-				dbUsers.filter((u) => u.role !== UserRole.Admin).length,
-			);
 			expect(users).toHaveLength(
 				dbUsers.filter((u) => u.role !== UserRole.Admin).length,
 			);
 		});
 
 		it("Should filter users by isBanned and isVerified", async () => {
-			const queries: ({ isBanned: "true" } | { isVerified: "true" })[] = [
-				{ isBanned: "true" },
-				{ isVerified: "true" },
+			const queries: (
+				| { isBanned: "true"; limit: number }
+				| { isVerified: "true"; limit: number }
+			)[] = [
+				{
+					isBanned: "true",
+					limit:
+						dbUsers.length <= GetUsersMaxLimit
+							? dbUsers.length
+							: GetUsersMaxLimit,
+				},
+				{
+					isVerified: "true",
+					limit:
+						dbUsers.length <= GetUsersMaxLimit
+							? dbUsers.length
+							: GetUsersMaxLimit,
+				},
 			];
 
 			for (const query of queries) {
@@ -73,23 +94,26 @@ describe("Admin", () => {
 							}),
 						},
 					},
-					{ fn: testApp.getUsers, args: { query } },
+					{
+						fn: testApp.getUsers,
+						args: { query } as unknown as Record<string, string>,
+					},
 					UserRole.Admin,
 				);
 
 				expect(res.statusCode).toBe(200);
 
 				const {
-					data: { totalCount, users },
+					data: { users },
 				} = res.json<{
 					status: "success";
 					data: {
-						totalCount: number;
+						pageCount: number;
 						users: z.Infer<typeof AdminUserSchema>[];
 					};
 				}>();
 
-				expect(totalCount).toBe(
+				expect(users.length).toBe(
 					dbUsers.filter(
 						(u) =>
 							(Object.hasOwn(query, "isBanned") ? u.isBanned : u.isVerified) &&
@@ -134,20 +158,24 @@ describe("Admin", () => {
 
 				expect(res.statusCode).toBe(200);
 				const {
-					data: { totalCount, users },
+					data: { users },
 				} = res.json<{
 					status: "success";
 					data: {
-						totalCount: number;
+						pageCount: number;
 						users: z.Infer<typeof AdminUserSchema>[];
 					};
 				}>();
 
 				if (expected) {
-					expect(totalCount).toBeGreaterThan(0);
-					expect(users.some((u) => u.email === email)).toBe(true);
+					expect(users.length).toBeGreaterThan(0);
+					expect(
+						users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
+					).toBe(true);
 				} else {
-					expect(users.some((u) => u.email === email)).toBe(false);
+					expect(users.some((u) => u.email === email.toLowerCase())).toBe(
+						false,
+					);
 				}
 			}
 		});

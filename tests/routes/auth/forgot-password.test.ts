@@ -64,7 +64,7 @@ describe("Authentication", () => {
 				await testApp.app.kysely
 					.updateTable("users")
 					.set(index === 0 ? { isVerified: false } : { isBanned: true })
-					.where("email", "=", body.email)
+					.where("email", "=", body.email.toLowerCase())
 					.execute();
 
 				const res = await testApp.forgotPassword({

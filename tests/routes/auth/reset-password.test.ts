@@ -54,7 +54,7 @@ describe("Authentication", () => {
 			const currUser = await testApp.app.kysely
 				.selectFrom("users")
 				.select("password")
-				.where("email", "=", user.email)
+				.where("email", "=", user.email.toLowerCase())
 				.executeTakeFirst();
 			expect(currUser).toBeDefined();
 
@@ -76,7 +76,7 @@ describe("Authentication", () => {
 			const updatedUser = await testApp.app.kysely
 				.selectFrom("users")
 				.select("password")
-				.where("email", "=", user.email)
+				.where("email", "=", user.email.toLowerCase())
 				.executeTakeFirst();
 
 			expect(currUser).toBeDefined();
@@ -144,7 +144,7 @@ describe("Authentication", () => {
 				await testApp.app.kysely
 					.updateTable("users")
 					.set(index === 0 ? { isVerified: false } : { isBanned: true })
-					.where("email", "=", body.email)
+					.where("email", "=", body.email.toLowerCase())
 					.execute();
 
 				const token = (await testApp.app.redis.keys("*"))
@@ -175,7 +175,7 @@ describe("Authentication", () => {
 				if (index === 0) {
 					await testApp.app.kysely
 						.deleteFrom("users")
-						.where("email", "=", user.email)
+						.where("email", "=", user.email.toLowerCase())
 						.execute();
 				}
 

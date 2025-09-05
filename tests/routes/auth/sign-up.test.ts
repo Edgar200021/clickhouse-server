@@ -34,7 +34,7 @@ describe("Authentication", () => {
 			const dbUser = await testApp.app.kysely
 				.selectFrom("users")
 				.select(["isVerified", "password"])
-				.where("email", "=", user.email)
+				.where("email", "=", user.email.toLocaleLowerCase())
 				.executeTakeFirst();
 
 			expect(dbUser).toBeDefined();

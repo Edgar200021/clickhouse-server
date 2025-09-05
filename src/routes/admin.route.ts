@@ -716,7 +716,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 						req.body.packages = [req.body.packages];
 					}
 					req.body.packages = req.body.packages.map((pkg) => {
-						return JSON.parse(pkg);
+						return typeof pkg === "string" ? JSON.parse(pkg) : pkg;
 					});
 				}
 			},
@@ -759,6 +759,28 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	);
 
 	fastify.delete(
+		"/admin/products-sku/:productSkuId",
+		{
+			schema: {
+				params: ProductSkuParamSchema,
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			await productSkuService.remove(req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
+			});
+		},
+	);
+
+	fastify.delete(
 		"/admin/products-sku/:productSkuId/images/:imageId",
 		{
 			schema: {
@@ -776,6 +798,32 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		},
 		async (req, reply) => {
 			await productSkuService.deleteImage(req.params, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
+			});
+		},
+	);
+
+	fastify.delete(
+		"/admin/products-sku/:productSkuId/packages/:packageId",
+		{
+			schema: {
+				params: GenericSchema(
+					"packageId",
+					ProductSkuParamSchema,
+					z.coerce.number().positive(),
+				),
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			await productSkuService.deletePackage(req.params, req.log);
 
 			reply.status(200).send({
 				status: "success",

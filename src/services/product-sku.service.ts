@@ -236,7 +236,6 @@ export function createProductSkuService(instance: FastifyInstance) {
 					),
 				);
 
-
 				const [images, packages] = await Promise.all([
 					trx
 						.insertInto("productSkuImages")
@@ -264,8 +263,6 @@ export function createProductSkuService(instance: FastifyInstance) {
 							]
 						: []),
 				]);
-
-
 
 				return {
 					...product,
@@ -491,39 +488,79 @@ export function createProductSkuService(instance: FastifyInstance) {
 		}
 	}
 
+	async function remove(param: ProductSkuParam, log: FastifyBaseLogger) {
+		const productSku = await kysely
+			.deleteFrom("productSku")
+			.where("id", "=", param.productSkuId)
+			.returning(["id"])
+			.executeTakeFirst();
+
+		if (!productSku) {
+			log.info("Delete product sku failed: product sku not found");
+			throw httpErrors.notFound("Product sku not found");
+		}
+	}
+
 	async function deleteImage(
 		param: Combined<ProductSkuParam, ProductSkuImages["id"], "imageId">,
 		log: FastifyBaseLogger,
 	) {
-		const countResult = await kysely
-			.selectFrom("productSkuImages")
-			.select(sql<number>`COUNT(*)::INTEGER`.as("count"))
+		try {
+			const countResult = await kysely
+				.selectFrom("productSkuImages")
+				.select(sql<number>`COUNT(*)::INTEGER`.as("count"))
+				.where("productSkuId", "=", param.productSkuId)
+				.groupBy("productSkuId")
+				.executeTakeFirstOrThrow();
+
+			if (countResult.count === 1) {
+				log.info(
+					"Delete image failed: product SKU must have at least one image",
+				);
+				throw httpErrors.badRequest("Product must have at least one image");
+			}
+
+			const image = await kysely
+				.deleteFrom("productSkuImages")
+				.where("productSkuId", "=", param.productSkuId)
+				.where("id", "=", param.imageId)
+				.returning(["id", "imageId"])
+				.executeTakeFirst();
+
+			if (!image) {
+				log.info("Delete product sku image failed: image not found");
+				throw httpErrors.notFound("Image not found");
+			}
+
+			await fileUploaderManager.deleteFile(image.imageId);
+		} catch (err) {
+			if (
+				err instanceof Error &&
+				err.message.toLowerCase().includes("no result")
+			) {
+				log.info("Remove product sku image failed: product sku not found");
+				throw httpErrors.notFound("Product Sku not found");
+			}
+
+			throw err;
+		}
+	}
+
+	async function deletePackage(
+		param: Combined<ProductSkuParam, ProductSkuPackage["id"], "packageId">,
+		log: FastifyBaseLogger,
+	) {
+		const pkg = await kysely
+			.deleteFrom("productSkuPackage")
 			.where("productSkuId", "=", param.productSkuId)
-			.groupBy("productSkuId")
+			.where("id", "=", param.packageId)
+			.returning("id")
 			.executeTakeFirst();
 
-		if (!countResult) {
-			throw httpErrors.internalServerError("Failed to count images");
+		if (!pkg) {
+			log.info("Delete product sku package failed: package not found");
+			throw httpErrors.notFound("Package not found");
 		}
-
-		if (countResult.count === 1) {
-			log.info("Delete image failed: product SKU must have at least one image");
-			throw httpErrors.badRequest("Product must have at least one image");
-		}
-
-		const image = await kysely
-			.deleteFrom("productSkuImages")
-			.where("productSkuId", "=", param.productSkuId)
-			.where("id", "=", param.imageId)
-			.returning(["id", "imageId"])
-			.executeTakeFirst();
-
-		if (!image) {
-			log.info("Delete product sku image failed: image not found");
-			throw httpErrors.notFound("Image not found");
-		}
-
-		await fileUploaderManager.deleteFile(image.imageId);
 	}
 
 	function buildAdminProductSku() {
@@ -694,5 +731,5 @@ export function createProductSkuService(instance: FastifyInstance) {
 		return err;
 	}
 
-	return { getAll, getOne, create, update, deleteImage };
+	return { getAll, getOne, create, update, remove, deleteImage, deletePackage };
 }

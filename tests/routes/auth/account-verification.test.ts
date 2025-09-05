@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 import { VerificationPrefix } from "../../../src/const/redis.js";
 import { SignUpPasswordMinLength } from "../../../src/const/zod.js";
@@ -52,10 +53,33 @@ describe("Authentication", () => {
 			const dbUser = await testApp.app.kysely
 				.selectFrom("users")
 				.select("isVerified")
-				.where("email", "=", user.email)
+				.where("email", "=", user.email.toLowerCase())
 				.executeTakeFirst();
 
 			expect(dbUser?.isVerified).toBe(true);
+		});
+
+		it("Should create cart for user when request is successful", async () => {
+			await testApp.signUp({ body: user });
+
+			const token = (await testApp.app.redis.keys("*"))
+				.filter((key) => key.startsWith(VerificationPrefix))
+				.at(-1)
+				?.split(VerificationPrefix)
+				.at(-1);
+
+			await testApp.accountVerification({
+				body: { token },
+			});
+
+			const cart = await testApp.app.kysely
+				.selectFrom("cart")
+				.innerJoin("users", "users.id", "cart.userId")
+				.where("users.email", "=", user.email.toLowerCase())
+				.selectAll("cart")
+				.executeTakeFirst();
+
+			expect(cart).toBeDefined();
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {
@@ -96,7 +120,7 @@ describe("Authentication", () => {
 				await testApp.app.kysely
 					.updateTable("users")
 					.set(index === 0 ? { isVerified: true } : { isBanned: true })
-					.where("email", "=", body.email)
+					.where("email", "=", body.email.toLowerCase())
 					.execute();
 
 				const token = (await testApp.app.redis.keys("*"))
@@ -124,7 +148,7 @@ describe("Authentication", () => {
 			await testApp.signUp({ body: user });
 			await testApp.app.kysely
 				.deleteFrom("users")
-				.where("email", "=", user.email)
+				.where("email", "=", user.email.toLowerCase())
 				.execute();
 
 			const token = (await testApp.app.redis.keys("*"))

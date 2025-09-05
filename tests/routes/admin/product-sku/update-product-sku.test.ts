@@ -192,9 +192,6 @@ describe("Admin", () => {
 			);
 
 			for (const response of responses as LightMyRequestResponse[]) {
-				if (response.statusCode !== 200) {
-					console.log(response);
-				}
 				expect(response.statusCode).toBe(200);
 			}
 

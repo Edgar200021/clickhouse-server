@@ -5,11 +5,12 @@ import type {
 	FastifyReply,
 	FastifyRequest,
 } from "fastify";
-import { type ReferenceExpression, sql } from "kysely";
+import { type ReferenceExpression, sql, type Transaction } from "kysely";
 import {
 	OAauthSessionPrefix,
 	OAuthRedirectPathSeperator,
 } from "../const/cookie.js";
+import { DuplicateCode } from "../const/database.js";
 import {
 	ResetPasswordPrefix,
 	SessionPrefix,
@@ -25,6 +26,7 @@ import type { SignInRequest } from "../schemas/auth/sign-in.schema.js";
 import type { SignUpRequest } from "../schemas/auth/sign-up.schema.js";
 import type { VerifyAccountRequest } from "../schemas/auth/verify-account.schema.js";
 import type { DB } from "../types/db/db.js";
+import { isDatabaseError } from "../types/db/error.js";
 import type { User } from "../types/db/user.js";
 import type { OAuth2Provider } from "../types/oauth2.js";
 import { assertValidUser } from "../utils/user.utils.js";
@@ -46,7 +48,7 @@ export function createAuthService(instance: FastifyInstance) {
 		const user = await kysely
 			.selectFrom("users")
 			.select("id")
-			.where("email", "=", email)
+			.where("email", "=", email.toLowerCase())
 			.executeTakeFirst();
 
 		if (user) {
@@ -55,10 +57,11 @@ export function createAuthService(instance: FastifyInstance) {
 		}
 
 		const hashed = await passwordManager.hash(password);
+
 		const { id } = await kysely
 			.insertInto("users")
 			.values({
-				email,
+				email: email.toLowerCase(),
 				password: hashed,
 				createdAt: sql`NOW()`,
 			})
@@ -111,21 +114,25 @@ export function createAuthService(instance: FastifyInstance) {
 			throw httpErrors.badRequest("User is already verified");
 		}
 
-		await kysely
-			.updateTable("users")
-			.set({
-				isVerified: true,
-				updatedAt: sql`NOW()`,
-			})
-			.where("id", "=", userID)
-			.execute();
+		await kysely.transaction().execute(async (trx) => {
+			await trx
+				.updateTable("users")
+				.set({
+					isVerified: true,
+					updatedAt: sql`NOW()`,
+				})
+				.where("id", "=", userID)
+				.execute();
+
+			await createCartIfNotExists(user!, trx);
+		});
 	}
 
 	async function signIn(data: SignInRequest, log: FastifyBaseLogger) {
 		const user = await kysely
 			.selectFrom("users")
 			.selectAll()
-			.where("email", "=", data.email)
+			.where("email", "=", data.email.toLowerCase())
 			.executeTakeFirst();
 
 		if (
@@ -154,7 +161,7 @@ export function createAuthService(instance: FastifyInstance) {
 		const user = await kysely
 			.selectFrom("users")
 			.select(["id", "email", "isVerified", "isBanned"])
-			.where("email", "=", data.email)
+			.where("email", "=", data.email.toLowerCase())
 			.executeTakeFirst();
 
 		assertValidUser(user, log, httpErrors, {
@@ -190,7 +197,7 @@ export function createAuthService(instance: FastifyInstance) {
 		const user = await kysely
 			.selectFrom("users")
 			.select(["id", "isBanned", "isVerified"])
-			.where("email", "=", email)
+			.where("email", "=", email.toLowerCase())
 			.executeTakeFirst();
 
 		assertValidUser(user, log, httpErrors, {
@@ -204,7 +211,7 @@ export function createAuthService(instance: FastifyInstance) {
 			.updateTable("users")
 			.set("password", hashedPassword)
 			.set("updatedAt", sql`NOW()`)
-			.where("email", "=", email)
+			.where("email", "=", email.toLowerCase())
 			.execute();
 	}
 
@@ -299,35 +306,39 @@ export function createAuthService(instance: FastifyInstance) {
 			.where((eb) =>
 				eb.or([
 					eb(oauthColumn, "=", oauthUser.id),
-					eb("email", "=", oauthUser.email),
+					eb("email", "=", oauthUser.email.toLowerCase()),
 				]),
 			)
 			.executeTakeFirst();
 
 		if (!dbUser) {
-			const newUser = await kysely
-				.insertInto("users")
-				.values({
-					email: oauthUser.email,
-					[oauthColumn]: oauthUser.id,
-					isVerified: true,
-					createdAt: sql`NOW()`,
-				})
-				.returning("id")
-				.executeTakeFirstOrThrow();
+			return await kysely.transaction().execute(async (trx) => {
+				const newUser = await trx
+					.insertInto("users")
+					.values({
+						email: oauthUser.email,
+						[oauthColumn]: oauthUser.id,
+						isVerified: true,
+						createdAt: sql`NOW()`,
+					})
+					.returning("id")
+					.executeTakeFirstOrThrow();
 
-			const uuid = await generateSession(newUser, "oauth");
+				await createCartIfNotExists(newUser, trx);
 
-			return reply
-				.cookie(
-					config.application.sessionCookieName,
-					`${OAauthSessionPrefix}${uuid}`,
-					{
-						maxAge: config.application.oauthSessionTTLMinutes * 60,
-					},
-				)
-				.clearCookie(config.application.oauthStateCookieName)
-				.redirect(redirectUrl);
+				const uuid = await generateSession(newUser, "oauth");
+
+				return reply
+					.cookie(
+						config.application.sessionCookieName,
+						`${OAauthSessionPrefix}${uuid}`,
+						{
+							maxAge: config.application.oauthSessionTTLMinutes * 60,
+						},
+					)
+					.clearCookie(config.application.oauthStateCookieName)
+					.redirect(redirectUrl);
+			});
 		}
 
 		assertValidUser(dbUser, req.log, httpErrors, {
@@ -343,8 +354,11 @@ export function createAuthService(instance: FastifyInstance) {
 					isVerified: true,
 					updatedAt: sql`NOW()`,
 				})
+				.where("id", "=", dbUser.id)
 				.execute();
 		}
+
+		await createCartIfNotExists(dbUser);
 
 		const uuid = await generateSession(dbUser, "oauth");
 
@@ -358,6 +372,27 @@ export function createAuthService(instance: FastifyInstance) {
 			)
 			.clearCookie(config.application.oauthStateCookieName)
 			.redirect(redirectUrl);
+	}
+
+	async function createCartIfNotExists(
+		user: Pick<User, "id">,
+		trx?: Transaction<DB>,
+	) {
+		try {
+			await (trx ?? kysely)
+				.insertInto("cart")
+				.values({ userId: user.id })
+				.execute();
+		} catch (err) {
+			if (
+				isDatabaseError(err) &&
+				err.code === DuplicateCode &&
+				err.table === "cart"
+			)
+				return;
+
+			throw err;
+		}
 	}
 
 	async function generateSession(

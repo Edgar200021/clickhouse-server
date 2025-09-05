@@ -40,6 +40,8 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
+			console.log(deleteCategoryRes);
+
 			expect(deleteCategoryRes.statusCode).toBe(200);
 		});
 

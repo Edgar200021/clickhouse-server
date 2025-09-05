@@ -5,7 +5,10 @@ import {
 } from "../../const/zod.js";
 
 export const SignUpRequestSchema = z.object({
-	email: z.email(),
+	email: z
+		.email()
+		.trim()
+		.transform((v) => v.toLowerCase()),
 	password: z
 		.string()
 		.min(SignUpPasswordMinLength)

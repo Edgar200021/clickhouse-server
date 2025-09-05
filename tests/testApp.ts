@@ -15,7 +15,12 @@ import { VerificationPrefix } from "../src/const/redis.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
-import type { Product, ProductSku } from "../src/types/db/product.js";
+import type {
+	Product,
+	ProductSku,
+	ProductSkuImages,
+	ProductSkuPackage,
+} from "../src/types/db/product.js";
 import type { User } from "../src/types/db/user.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
@@ -65,6 +70,8 @@ interface TestApp {
 	getProductSku: typeof getProductSku;
 	createProductSku: typeof createProductSku;
 	updateProductSku: typeof updateProductSku;
+	removeProductSkuImage: typeof removeProductSkuImage;
+	removeProductSkuPackage: typeof removeProductSkuPackage;
 }
 
 async function signUp(
@@ -144,7 +151,7 @@ async function withSignIn<
 		await this.app.kysely
 			.updateTable("users")
 			.set({ role })
-			.where("email", "=", signInBody.body.email)
+			.where("email", "=", signInBody.body.email.toLowerCase())
 			.execute();
 	}
 
@@ -462,6 +469,36 @@ async function updateProductSku(
 	});
 }
 
+async function removeProductSkuImage(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	args?: {
+		productSkuId: ProductSku["id"];
+		imageId: ProductSkuImages["id"];
+	},
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/products-sku/${args?.productSkuId}/images/${args?.imageId}`,
+		...options,
+	});
+}
+
+async function removeProductSkuPackage(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	args?: {
+		productSkuId: ProductSku["id"];
+		packageId: ProductSkuPackage["id"];
+	},
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/products-sku/${args?.productSkuId}/packages/${args?.packageId}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
@@ -519,5 +556,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		getProductSku,
 		createProductSku,
 		updateProductSku,
+		removeProductSkuImage,
+		removeProductSkuPackage,
 	};
 }
