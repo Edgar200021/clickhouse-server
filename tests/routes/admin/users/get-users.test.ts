@@ -211,7 +211,7 @@ describe("Admin", () => {
 				UserRole.Admin,
 			);
 
-			for (const response of responses as LightMyRequestResponse[]) {
+			for (const response of responses as unknown as LightMyRequestResponse[]) {
 				expect(response.statusCode).toBe(400);
 			}
 		});

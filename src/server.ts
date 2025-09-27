@@ -14,6 +14,7 @@ closeWithGrace(
 			app.log.info(`${signal} received, server closing `);
 		}
 
+		app.scheduler.stop();
 		await app.close();
 	},
 );

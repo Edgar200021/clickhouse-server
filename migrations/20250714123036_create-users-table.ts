@@ -13,10 +13,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "uuid", (col) =>
 			col.primaryKey().defaultTo(sql`gen_random_uuid()`),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("email", "text", (col) => col.unique().notNull())

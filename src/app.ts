@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fastifyAutoload from "@fastify/autoload";
 import { ajvFilePlugin } from "@fastify/multipart";
+import fastifySchedule from "@fastify/schedule";
 import Fastify from "fastify";
 import {
 	hasZodFastifySchemaValidationErrors,
@@ -22,6 +23,8 @@ export async function buildApp(config: Config) {
 			plugins: [ajvFilePlugin],
 		},
 	}).withTypeProvider<ZodTypeProvider>();
+
+	app.register(fastifySchedule);
 
 	app.setValidatorCompiler(validatorCompiler);
 	app.setSerializerCompiler(serializerCompiler);

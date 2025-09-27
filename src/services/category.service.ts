@@ -1,5 +1,4 @@
-import type { FastifyBaseLogger } from "fastify";
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { sql } from "kysely";
 import { CategoriesKey } from "../const/redis.js";
 import type { CategoryParam } from "../schemas/category/category-param.schema.js";

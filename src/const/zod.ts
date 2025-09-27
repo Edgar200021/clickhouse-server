@@ -30,3 +30,10 @@ export const ProductSkuImagesMaxLength = 5;
 
 export const ProductSkuPackagesMinLength = 1;
 export const ProductSkuPackagesMaxLength = 5;
+
+export const GetCartItemsDefaultLimit = 30;
+export const GetCartItemsMaxLimit = 100;
+export const CartItemMaxQuantityPerProduct = 100;
+
+export const GetPromocodesMaxLimit = 100;
+export const GetPromocodesDefaultLimit = 50;

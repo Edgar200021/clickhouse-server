@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyBaseLogger } from "fastify";
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
 	type Expression,
 	type ExpressionBuilder,
@@ -15,6 +14,7 @@ import {
 } from "../const/zod.js";
 import type { CreateProductSkuRequest } from "../schemas/product-sku/create-product-sku.schema.js";
 import type { GetProductsSkusRequestQuery } from "../schemas/product-sku/get-products-skus.schema.js";
+import type { GetProductsSkusAdminRequestQuery } from "../schemas/product-sku/get-products-skus-admin.schema.js";
 import type { ProductSkuAttributes } from "../schemas/product-sku/product-sku.schema.js";
 import type { ProductSkuParam } from "../schemas/product-sku/product-sku-param.schema.js";
 import type { UpdateProductSkuRequest } from "../schemas/product-sku/update-product-sku.schema.js";
@@ -47,31 +47,36 @@ type GetOneResult<T extends UserRole> = T extends UserRole.Admin
 			> & {
 				attributes: ProductSkuAttributes;
 				images: Pick<ProductSkuImages, "imageId" | "imageUrl">[];
-				packages: Omit<ProductSkuPackage, "productSkuId">[];
+				packages: Omit<
+					ProductSkuPackage,
+					"productSkuId" | "id" | "createdAt" | "updatedAt"
+				>[];
 			},
-			Omit<Product, "id" | "createdAt" | "updatedAt" | "isDeleted">,
+			Omit<
+				Product,
+				"id" | "createdAt" | "manufacturerId" | "updatedAt" | "isDeleted"
+			>,
 			"product"
 		>;
 
-export function createProductSkuService(instance: FastifyInstance) {
-	const { kysely, httpErrors, fileUploaderManager } = instance;
+type GetAllQuery<T extends UserRole> = T extends UserRole.Admin
+	? GetProductsSkusAdminRequestQuery
+	: GetProductsSkusRequestQuery;
 
-	async function getAll(query: GetProductsSkusRequestQuery): Promise<
-		WithPageCount<
-			Combined<
-				Omit<ProductSku, "productId" | "attributes"> & {
-					attributes: ProductSkuAttributes;
-					images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
-					packages: Omit<ProductSkuPackage, "productSkuId">[];
-				},
-				Product,
-				"product"
-			>[],
-			"productsSkus"
-		>
-	> {
+export function createProductSkuService(instance: FastifyInstance) {
+	const {
+		kysely,
+		httpErrors,
+		fileUploaderManager,
+		priceService: { transformPrice },
+	} = instance;
+
+	async function getAll<T extends UserRole>(
+		query: GetAllQuery<T>,
+		role: T,
+	): Promise<WithPageCount<GetOneResult<T>[], "productsSkus">> {
 		const productsSkus = await buildAdminProductSku()
-			.where((eb) => buildFilters(query, eb))
+			.where((eb) => buildFilters(query, eb, role))
 			.orderBy("productSku.createdAt", "desc")
 			.limit(query.limit)
 			.offset(query.limit * query.page - query.limit)
@@ -81,39 +86,69 @@ export function createProductSkuService(instance: FastifyInstance) {
 			.selectFrom("productSku")
 			.innerJoin("product", "product.id", "productSku.productId")
 			.select(sql<number>`COUNT(*)::INTEGER`.as("totalCount"))
-			.where((eb) => buildFilters(query, eb))
+			.where((eb) => buildFilters(query, eb, role))
 			.executeTakeFirstOrThrow();
+
+		if (role === UserRole.Admin) {
+			return {
+				pageCount: Math.ceil(totalCount / query.limit),
+				productsSkus: productsSkus.map((p) => ({
+					id: p.id,
+					createdAt: p.createdAt,
+					updatedAt: p.updatedAt,
+					currency: p.currency,
+					price: transformPrice(p.price, p.currency, "read"),
+					salePrice: p.salePrice
+						? transformPrice(p.salePrice, p.currency, "read")
+						: null,
+					quantity: p.quantity,
+					sku: p.sku,
+					attributes: p.attrs,
+					images: p.images,
+					packages: p.packages,
+					product: {
+						id: p.pid,
+						createdAt: p.pcr,
+						updatedAt: p.pup,
+						name: p.name,
+						description: p.description,
+						shortDescription: p.shortDescription,
+						materialsAndCare: p.materialsAndCare,
+						assemblyInstructionFileId: p.assemblyInstructionFileId,
+						assemblyInstructionFileUrl: p.assemblyInstructionFileUrl,
+						isDeleted: p.isDeleted,
+						categoryId: p.categoryId,
+						manufacturerId: p.manufacturerId,
+					},
+				})),
+			} as WithPageCount<GetOneResult<T>[], "productsSkus">;
+		}
 
 		return {
 			pageCount: Math.ceil(totalCount / query.limit),
 			productsSkus: productsSkus.map((p) => ({
 				id: p.id,
-				createdAt: p.createdAt,
-				updatedAt: p.updatedAt,
 				currency: p.currency,
-				price: p.price,
-				salePrice: p.salePrice,
+				price: transformPrice(p.price, p.currency, "read"),
+				salePrice: p.salePrice
+					? transformPrice(p.salePrice, p.currency, "read")
+					: null,
 				quantity: p.quantity,
 				sku: p.sku,
 				attributes: p.attrs,
 				images: p.images,
 				packages: p.packages,
 				product: {
-					id: p.pid,
-					createdAt: p.pcr,
-					updatedAt: p.pup,
 					name: p.name,
 					description: p.description,
+					categoryId: p.categoryId,
 					shortDescription: p.shortDescription,
 					materialsAndCare: p.materialsAndCare,
 					assemblyInstructionFileId: p.assemblyInstructionFileId,
 					assemblyInstructionFileUrl: p.assemblyInstructionFileUrl,
-					isDeleted: p.isDeleted,
-					categoryId: p.categoryId,
-					manufacturerId: p.manufacturerId,
 				},
 			})),
-		};
+		} as WithPageCount<GetOneResult<T>[], "productsSkus">;
 	}
 
 	async function getOne<T extends UserRole>(
@@ -136,8 +171,10 @@ export function createProductSkuService(instance: FastifyInstance) {
 				createdAt: productSku.createdAt,
 				updatedAt: productSku.updatedAt,
 				currency: productSku.currency,
-				price: productSku.price,
-				salePrice: productSku.salePrice,
+				price: transformPrice(productSku.price, productSku.currency, "read"),
+				salePrice: productSku.salePrice
+					? transformPrice(productSku.salePrice, productSku.currency, "read")
+					: null,
 				quantity: productSku.quantity,
 				sku: productSku.sku,
 				attributes: productSku.attrs,
@@ -163,8 +200,10 @@ export function createProductSkuService(instance: FastifyInstance) {
 		return {
 			id: productSku.id,
 			currency: productSku.currency,
-			price: productSku.price,
-			salePrice: productSku.salePrice,
+			price: transformPrice(productSku.price, productSku.currency, "read"),
+			salePrice: productSku.salePrice
+				? transformPrice(productSku.salePrice, productSku.currency, "read")
+				: null,
 			quantity: productSku.quantity,
 			sku: productSku.sku,
 			attributes: productSku.attrs,
@@ -172,13 +211,12 @@ export function createProductSkuService(instance: FastifyInstance) {
 			packages: productSku.packages,
 			product: {
 				name: productSku.name,
+				categoryId: productSku.categoryId,
 				description: productSku.description,
 				shortDescription: productSku.shortDescription,
 				materialsAndCare: productSku.materialsAndCare,
 				assemblyInstructionFileId: productSku.assemblyInstructionFileId,
 				assemblyInstructionFileUrl: productSku.assemblyInstructionFileUrl,
-				categoryId: productSku.categoryId,
-				manufacturerId: productSku.manufacturerId,
 			},
 		} as GetOneResult<T>;
 	}
@@ -204,8 +242,11 @@ export function createProductSkuService(instance: FastifyInstance) {
 					.values({
 						productId: data.productId,
 						sku: randomUUID(),
-						price: data.price,
-						salePrice: data.salePrice,
+						currency: data.currency,
+						price: transformPrice(data.price, data.currency, "store"),
+						salePrice: data.salePrice
+							? transformPrice(data.salePrice, data.currency, "store")
+							: null,
 						quantity: data.quantity,
 						attributes: sql`
       hstore(
@@ -386,6 +427,24 @@ export function createProductSkuService(instance: FastifyInstance) {
 					.updateTable("productSku")
 					.set({
 						...updateData,
+						...(updateData.price
+							? {
+									price: transformPrice(
+										updateData.price,
+										updateData.currency ?? productSku.currency,
+										"store",
+									),
+								}
+							: {}),
+						...(updateData.salePrice
+							? {
+									salePrice: transformPrice(
+										updateData.salePrice,
+										updateData.currency ?? productSku.currency,
+										"store",
+									),
+								}
+							: {}),
 						...(buildedAttributes
 							? {
 									attributes: sql`
@@ -636,14 +695,21 @@ export function createProductSkuService(instance: FastifyInstance) {
 		return productSku;
 	}
 
-	function buildFilters(
-		query: GetProductsSkusRequestQuery,
+	function buildFilters<T extends UserRole>(
+		query: GetAllQuery<T>,
 		eb: ExpressionBuilder<DB, "product" | "productSku">,
+		role: T,
 	): ExpressionWrapper<DB, "productSku" | "product", SqlBool> {
 		const ands: Expression<SqlBool>[] = [];
 
-		if (query.isDeleted !== undefined) {
-			ands.push(eb("product.isDeleted", "=", query.isDeleted));
+		if (role === UserRole.Admin && "isDeleted" in query) {
+			if (query.isDeleted !== undefined) {
+				ands.push(eb("product.isDeleted", "=", query.isDeleted));
+			}
+		}
+
+		if ("categoryId" in query && query.categoryId) {
+			ands.push(eb("product.categoryId", "=", query.categoryId));
 		}
 
 		if (query.search) {
@@ -657,23 +723,55 @@ export function createProductSkuService(instance: FastifyInstance) {
 		}
 
 		if (query.minPrice) {
-			ands.push(eb("productSku.price", ">=", query.minPrice));
+			ands.push(
+				eb(
+					"productSku.price",
+					">=",
+					transformPrice(query.minPrice, query.currency, "store"),
+				),
+			);
 		}
 
 		if (query.maxPrice) {
-			ands.push(eb("productSku.price", "<=", query.maxPrice));
+			ands.push(
+				eb(
+					"productSku.price",
+					"<=",
+					transformPrice(query.maxPrice, query.currency, "store"),
+				),
+			);
 		}
 
 		if (query.minSalePrice) {
-			ands.push(eb("productSku.salePrice", ">=", query.minSalePrice));
+			ands.push(
+				eb(
+					"productSku.salePrice",
+					">=",
+					transformPrice(query.minSalePrice, query.currency, "store"),
+				),
+			);
 		}
 
 		if (query.maxSalePrice) {
-			ands.push(eb("productSku.salePrice", "<=", query.maxSalePrice));
+			ands.push(
+				eb(
+					"productSku.salePrice",
+					"<=",
+					transformPrice(query.maxSalePrice, query.currency, "store"),
+				),
+			);
 		}
 
 		if (query.sku) {
 			ands.push(eb("productSku.sku", "=", query.sku));
+		}
+
+		if (query.inStock !== undefined) {
+			ands.push(eb("productSku.quantity", ">", 1));
+		}
+
+		if (query.withDiscount !== undefined) {
+			ands.push(eb("productSku.salePrice", "is not", null));
 		}
 
 		return eb.and(ands);
@@ -731,5 +829,14 @@ export function createProductSkuService(instance: FastifyInstance) {
 		return err;
 	}
 
-	return { getAll, getOne, create, update, remove, deleteImage, deletePackage };
+	return {
+		getAll,
+		getOne,
+		create,
+		update,
+		remove,
+		deleteImage,
+		deletePackage,
+		buildAdminProductSku,
+	};
 }

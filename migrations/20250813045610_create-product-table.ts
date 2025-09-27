@@ -12,10 +12,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("name", "text", (col) => col.notNull())
@@ -26,7 +26,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("assembly_instruction_file_id", "text")
 		.addColumn("assembly_instruction_file_url", "text")
 		.addColumn("category_id", "integer", (col) =>
-			col.notNull().references("category.id").onUpdate("cascade"),
+			col.references("category.id").onUpdate("cascade").onDelete("set null"),
 		)
 		.addColumn("manufacturer_id", "integer", (col) =>
 			col
@@ -43,10 +43,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("sku", "text", (col) => col.notNull().unique())
@@ -71,10 +71,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("quantity", "integer", (col) => col.notNull())
@@ -100,10 +100,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("image_id", "text", (col) => col.notNull())

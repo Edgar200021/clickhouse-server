@@ -1,5 +1,4 @@
-import type { FastifyBaseLogger } from "fastify";
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
 	type Expression,
 	type ExpressionBuilder,
@@ -15,7 +14,7 @@ import { type DB, UserRole } from "../types/db/db.js";
 import type { User } from "../types/db/user.js";
 
 export function createUserService(instance: FastifyInstance) {
-	const { kysely, httpErrors } = instance;
+	const { kysely, httpErrors, config } = instance;
 
 	async function getALl(
 		query: GetUsersRequestQuery,
@@ -81,6 +80,14 @@ export function createUserService(instance: FastifyInstance) {
 			.execute();
 	}
 
+	async function deleteNotVerifiedUsers() {
+		await sql`
+		DELETE FROM users
+		WHERE is_verified = false
+		  AND created_at < NOW() - make_interval(mins => ${config.application.verificationTokenTTLMinutes})
+`.execute(kysely);
+	}
+
 	function buildFilters(
 		query: GetUsersRequestQuery,
 		eb: ExpressionBuilder<DB, "users">,
@@ -105,5 +112,6 @@ export function createUserService(instance: FastifyInstance) {
 	return {
 		getALl,
 		blockToggle,
+		deleteNotVerifiedUsers,
 	};
 }

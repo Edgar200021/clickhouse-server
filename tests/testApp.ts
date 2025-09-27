@@ -11,7 +11,9 @@ import { runSeed } from "../scripts/db-seed.js";
 import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
+import { MaxCartItemCount } from "../src/const/const.js";
 import { VerificationPrefix } from "../src/const/redis.js";
+import type { CartItem } from "../src/types/db/cart.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
@@ -21,6 +23,7 @@ import type {
 	ProductSkuImages,
 	ProductSkuPackage,
 } from "../src/types/db/product.js";
+import type { Promocode } from "../src/types/db/promocode.js";
 import type { User } from "../src/types/db/user.js";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
@@ -51,6 +54,14 @@ interface TestApp {
 	logout: typeof logout;
 	getMe: typeof getMe;
 	getCategories: typeof getCategories;
+	getProductsSkus: typeof getProductsSkus;
+	getProductSku: typeof getProductSku;
+	getCart: typeof getCart;
+	addCartItem: typeof addCartItem;
+	updateCartItem: typeof updateCartItem;
+	deleteCartItem: typeof deleteCartItem;
+
+	// Admin routes
 	createCategory: typeof createCategory;
 	updateCategory: typeof updateCategory;
 	deleteCategory: typeof deleteCategory;
@@ -66,12 +77,16 @@ interface TestApp {
 	createProduct: typeof createProduct;
 	updateProduct: typeof updateProduct;
 	deleteProduct: typeof deleteProduct;
-	getProductsSkus: typeof getProductsSkus;
-	getProductSku: typeof getProductSku;
+	getProductsSkusAdmin: typeof getProductsSkusAdmin;
+	getProductSkuAdmin: typeof getProductSkuAdmin;
 	createProductSku: typeof createProductSku;
 	updateProductSku: typeof updateProductSku;
 	removeProductSkuImage: typeof removeProductSkuImage;
 	removeProductSkuPackage: typeof removeProductSkuPackage;
+	getPromocodes: typeof getPromocodes;
+	createPromocode: typeof createPromocode;
+	updatePromocode: typeof updatePromocode;
+	deletePromocode: typeof deletePromocode;
 }
 
 async function signUp(
@@ -138,6 +153,7 @@ async function withSignIn<
 > {
 	const res = await this.createAndVerify(signInBody);
 	if (res.statusCode !== 200) {
+		console.log(res);
 		throw new Error("Failed to create and verify account");
 	}
 
@@ -245,6 +261,75 @@ async function getCategories(
 	return await this.app.inject({
 		method: "GET",
 		url: "/api/v1/categories",
+		...options,
+	});
+}
+
+async function getProductsSkus(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: "/api/v1/product-sku",
+		...options,
+	});
+}
+
+async function getProductSku(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	productSkuId?: ProductSku["id"],
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/product-sku/${productSkuId}`,
+		...options,
+	});
+}
+
+async function getCart(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/cart`,
+		...options,
+	});
+}
+
+async function addCartItem(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/cart/items`,
+		...options,
+	});
+}
+
+async function updateCartItem(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	cartItemId?: CartItem["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/cart/items/${cartItemId}`,
+		...options,
+	});
+}
+
+async function deleteCartItem(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	cartItemId?: CartItem["id"],
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/cart/items/${cartItemId}`,
 		...options,
 	});
 }
@@ -423,7 +508,7 @@ async function deleteProduct(
 	});
 }
 
-async function getProductsSkus(
+async function getProductsSkusAdmin(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
 ) {
@@ -434,7 +519,7 @@ async function getProductsSkus(
 	});
 }
 
-async function getProductSku(
+async function getProductSkuAdmin(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
 	productSkuId?: ProductSku["id"],
@@ -499,16 +584,66 @@ async function removeProductSkuPackage(
 	});
 }
 
+async function getPromocodes(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/admin/promocode`,
+		...options,
+	});
+}
+
+async function createPromocode(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/admin/promocode`,
+		...options,
+	});
+}
+
+async function updatePromocode(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	promocodeId?: Promocode["id"],
+) {
+	return await this.app.inject({
+		method: "PATCH",
+		url: `/api/v1/admin/promocode/${promocodeId}`,
+		...options,
+	});
+}
+
+async function deletePromocode(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	promocodeId?: Promocode["id"],
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/admin/promocode/${promocodeId}`,
+		...options,
+	});
+}
+
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
 	config.database.name = randomUUID();
-	config.rateLimit.signUpLimit = 10;
+	config.rateLimit.signUpLimit = MaxCartItemCount + 5;
+	config.rateLimit.signInLimit = MaxCartItemCount + 5;
 	config.rateLimit.notFoundLimit = 10;
 	config.rateLimit.forgotPasswordLimit = 10;
 	config.rateLimit.resetPasswordLimit = 10;
-	config.rateLimit.accountVerificationLimit = 10;
+	config.rateLimit.accountVerificationLimit = MaxCartItemCount + 5;
 	config.rateLimit.getMeLimit = 5;
+	config.rateLimit.getCartLimit = 5;
+	config.rateLimit.addCartItemLimit = MaxCartItemCount + 2;
+
 	config.logger.logToFile = false;
 	process.env.DATABASE_URL = `postgresql://${config.database.user}:${config.database.password}@${config.database.host}:${config.database.port}/${config.database.name}`;
 
@@ -536,6 +671,13 @@ export async function buildTestApp(): Promise<TestApp> {
 		resetPassword,
 		logout,
 		getMe,
+		getProductsSkus,
+		getProductSku,
+		getCart,
+		addCartItem,
+		updateCartItem,
+		deleteCartItem,
+
 		getCategories,
 		createCategory,
 		updateCategory,
@@ -552,11 +694,15 @@ export async function buildTestApp(): Promise<TestApp> {
 		createProduct,
 		updateProduct,
 		deleteProduct,
-		getProductsSkus,
-		getProductSku,
+		getProductsSkusAdmin,
+		getProductSkuAdmin,
 		createProductSku,
 		updateProductSku,
 		removeProductSkuImage,
 		removeProductSkuPackage,
+		getPromocodes,
+		createPromocode,
+		updatePromocode,
+		deletePromocode,
 	};
 }

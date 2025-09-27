@@ -49,7 +49,7 @@ describe("Admin", () => {
 			const getProductsResponse = await testApp.withSignIn(
 				{ body: user },
 				{
-					fn: testApp.getProductsSkus,
+					fn: testApp.getProductsSkusAdmin,
 				},
 				UserRole.Admin,
 			);
@@ -147,13 +147,69 @@ describe("Admin", () => {
 				},
 				{
 					query: {
+						limit:
+							productsSkus.length > GetProductsSkusMaxLimit
+								? GetProductsSkusMaxLimit
+								: productsSkus.length,
+						withDiscount: true,
+					},
+					expectedLength:
+						productsSkus.filter((pr) => pr.salePrice === null).length >
+						GetProductsSkusMaxLimit
+							? GetProductsSkusMaxLimit
+							: productsSkus.filter((pr) => pr.salePrice === null).length,
+				},
+				{
+					query: {
+						limit:
+							productsSkus.length > GetProductsSkusMaxLimit
+								? GetProductsSkusMaxLimit
+								: productsSkus.length,
+						withDiscount: false,
+					},
+					expectedLength:
+						productsSkus.filter((pr) => pr.salePrice === null).length >
+						GetProductsSkusMaxLimit
+							? GetProductsSkusMaxLimit
+							: productsSkus.filter((pr) => pr.salePrice === null).length,
+				},
+				{
+					query: {
+						limit:
+							productsSkus.length > GetProductsSkusMaxLimit
+								? GetProductsSkusMaxLimit
+								: productsSkus.length,
+						inStock: true,
+					},
+					expectedLength:
+						productsSkus.filter((pr) => pr.quantity > 0).length >
+						GetProductsSkusMaxLimit
+							? GetProductsSkusMaxLimit
+							: productsSkus.filter((pr) => pr.quantity > 0).length,
+				},
+				{
+					query: {
+						limit:
+							productsSkus.length > GetProductsSkusMaxLimit
+								? GetProductsSkusMaxLimit
+								: productsSkus.length,
+						inStock: false,
+					},
+					expectedLength:
+						productsSkus.filter((pr) => pr.quantity === 0).length >
+						GetProductsSkusMaxLimit
+							? GetProductsSkusMaxLimit
+							: productsSkus.filter((pr) => pr.quantity === 0).length,
+				},
+				{
+					query: {
 						minPrice: Math.max(...productsSkus.map((p) => p.price)) + 1,
 					},
 					expectedLength: 0,
 				},
 			];
 
-			for (const [index, testCase] of testCases.entries()) {
+			for (const testCase of testCases) {
 				const getProductsRes = await testApp.withSignIn(
 					{
 						body: {
@@ -164,7 +220,7 @@ describe("Admin", () => {
 						},
 					},
 					{
-						fn: testApp.getProductsSkus,
+						fn: testApp.getProductsSkusAdmin,
 						args: {
 							query: testCase.query as unknown as Record<string, string>,
 						},
@@ -176,7 +232,7 @@ describe("Admin", () => {
 				expect(
 					getProductsRes.json<{
 						status: "success";
-						data: { productsSkus: ProductSku[]; totalCount: number };
+						data: { productsSkus: ProductSku[]; pageCount: number };
 					}>().data.productsSkus.length,
 				).toEqual(testCase.expectedLength);
 			}
@@ -215,23 +271,29 @@ describe("Admin", () => {
 					minPrice: 100,
 					maxPrice: 50,
 				},
+				{
+					withDiscount: "invalid value",
+				},
+				{
+					inStock: "Invalid value",
+				},
 			];
 			const responses = await testApp.withSignIn(
 				{ body: user },
 				testCases.map((query) => {
 					return {
-						fn: testApp.getProductsSkus,
+						fn: testApp.getProductsSkusAdmin,
 						args: { query: query as unknown as Record<string, string> },
 					};
 				}),
 				UserRole.Admin,
 			);
-			for (const response of responses as LightMyRequestResponse[])
+			for (const response of responses as unknown as LightMyRequestResponse[])
 				expect(response.statusCode).toBe(400);
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getProductsRes = await testApp.getProductsSkus({});
+			const getProductsRes = await testApp.getProductsSkusAdmin({});
 			expect(getProductsRes.statusCode).toBe(401);
 		});
 
@@ -239,7 +301,7 @@ describe("Admin", () => {
 			const getProductsRes = await testApp.withSignIn(
 				{ body: user },
 				{
-					fn: testApp.getProductsSkus,
+					fn: testApp.getProductsSkusAdmin,
 				},
 			);
 			expect(getProductsRes.statusCode).toBe(403);

@@ -1,5 +1,4 @@
-import type { FastifyBaseLogger } from "fastify";
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { DuplicateCode } from "../const/database.js";
 import type { CreateManufacturerRequest } from "../schemas/manufacturer/create-manufacturer.schema.js";
 import type { ManufacturerParam } from "../schemas/manufacturer/manufacturer-param.schema.js";

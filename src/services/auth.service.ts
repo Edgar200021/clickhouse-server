@@ -5,12 +5,11 @@ import type {
 	FastifyReply,
 	FastifyRequest,
 } from "fastify";
-import { type ReferenceExpression, sql, type Transaction } from "kysely";
+import { type ReferenceExpression, sql } from "kysely";
 import {
 	OAauthSessionPrefix,
 	OAuthRedirectPathSeperator,
 } from "../const/cookie.js";
-import { DuplicateCode } from "../const/database.js";
 import {
 	ResetPasswordPrefix,
 	SessionPrefix,
@@ -26,7 +25,6 @@ import type { SignInRequest } from "../schemas/auth/sign-in.schema.js";
 import type { SignUpRequest } from "../schemas/auth/sign-up.schema.js";
 import type { VerifyAccountRequest } from "../schemas/auth/verify-account.schema.js";
 import type { DB } from "../types/db/db.js";
-import { isDatabaseError } from "../types/db/error.js";
 import type { User } from "../types/db/user.js";
 import type { OAuth2Provider } from "../types/oauth2.js";
 import { assertValidUser } from "../utils/user.utils.js";
@@ -40,8 +38,8 @@ export function createAuthService(instance: FastifyInstance) {
 		emailManager,
 		redis,
 		config,
+		cartService,
 	} = instance;
-
 	async function signUp(data: SignUpRequest, log: FastifyBaseLogger) {
 		const { email, password } = data;
 
@@ -124,7 +122,7 @@ export function createAuthService(instance: FastifyInstance) {
 				.where("id", "=", userID)
 				.execute();
 
-			await createCartIfNotExists(user!, trx);
+			await cartService.createIfNotExists(user!, trx);
 		});
 	}
 
@@ -324,7 +322,7 @@ export function createAuthService(instance: FastifyInstance) {
 					.returning("id")
 					.executeTakeFirstOrThrow();
 
-				await createCartIfNotExists(newUser, trx);
+				await cartService.createIfNotExists(newUser, trx);
 
 				const uuid = await generateSession(newUser, "oauth");
 
@@ -358,7 +356,7 @@ export function createAuthService(instance: FastifyInstance) {
 				.execute();
 		}
 
-		await createCartIfNotExists(dbUser);
+		await cartService.createIfNotExists(dbUser);
 
 		const uuid = await generateSession(dbUser, "oauth");
 
@@ -372,27 +370,6 @@ export function createAuthService(instance: FastifyInstance) {
 			)
 			.clearCookie(config.application.oauthStateCookieName)
 			.redirect(redirectUrl);
-	}
-
-	async function createCartIfNotExists(
-		user: Pick<User, "id">,
-		trx?: Transaction<DB>,
-	) {
-		try {
-			await (trx ?? kysely)
-				.insertInto("cart")
-				.values({ userId: user.id })
-				.execute();
-		} catch (err) {
-			if (
-				isDatabaseError(err) &&
-				err.code === DuplicateCode &&
-				err.table === "cart"
-			)
-				return;
-
-			throw err;
-		}
 	}
 
 	async function generateSession(

@@ -6,10 +6,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("user_id", "uuid", (col) =>
@@ -20,6 +20,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 				.onDelete("cascade")
 				.onUpdate("cascade"),
 		)
+
 		.execute();
 
 	await db.schema
@@ -27,12 +28,13 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
+		.addColumn("quantity", "integer", (col) => col.notNull())
 		.addColumn("cart_id", "integer", (col) =>
 			col
 				.notNull()

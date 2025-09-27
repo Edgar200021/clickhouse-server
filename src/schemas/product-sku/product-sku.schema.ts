@@ -38,13 +38,17 @@ export const ProductSkuSchema = z.object({
 		})
 		.catchall(z.string()),
 	images: ProductSkuImageSchema.array(),
-	packages: ProductSkuPackageAdminSchema.array(),
+	packages: ProductSkuPackageSchema.array(),
 });
 
 export const ProductSkuAdminSchema = ProductSkuSchema.extend({
 	createdAt: z.iso.datetime(),
 	updatedAt: z.iso.datetime(),
-});
+})
+	.omit({ packages: true })
+	.extend({
+		packages: ProductSkuPackageAdminSchema.array(),
+	});
 
 export type ProductSkuAttributes = z.Infer<
 	typeof ProductSkuSchema

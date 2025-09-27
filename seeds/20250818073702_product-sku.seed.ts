@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type Insertable, InsertQueryNode, type Kysely, sql } from "kysely";
+import { type Insertable, type Kysely, sql } from "kysely";
 import type {
 	DB,
 	ProductSkuImages,
@@ -10,15 +10,16 @@ export async function seed(db: Kysely<DB>): Promise<void> {
 	const productIds = await db.selectFrom("product").select(["id"]).execute();
 	const colors = ["белый", "черный", "коричневый", "серый", "бежевый"];
 
-	for (const { id } of productIds) {
+	for (const [index, { id }] of productIds.entries()) {
 		for (const color of colors) {
 			const productSkuIds = await db
 				.insertInto("productSku")
 				.values({
 					productId: id,
-					price: 100,
-					quantity: 20,
+					price: 10000,
+					quantity: index % 2 === 0 ? 20 : 0,
 					sku: randomUUID(),
+					...(index % 2 === 0 ? { salePrice: 5000 } : {}),
 					attributes: sql`
       hstore(
         array['color','length','height','width'],

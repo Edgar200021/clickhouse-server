@@ -1,5 +1,4 @@
-import type { FastifyBaseLogger } from "fastify";
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
 	type Expression,
 	type ExpressionBuilder,
@@ -238,13 +237,9 @@ export function createProductService(instance: FastifyInstance) {
 		if (query.search) {
 			ands.push(
 				eb.or([
-					eb("product.name", "ilike", `${"%" + query.search + "%"}`),
-					eb("product.description", "ilike", `${"%" + query.search + "%"}`),
-					eb(
-						"product.shortDescription",
-						"ilike",
-						`${"%" + query.search + "%"}`,
-					),
+					eb("product.name", "ilike", `%${query.search}%`),
+					eb("product.description", "ilike", `%${query.search}%`),
+					eb("product.shortDescription", "ilike", `%${query.search}%`),
 				]),
 			);
 		}

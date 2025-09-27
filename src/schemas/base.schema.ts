@@ -25,12 +25,24 @@ export const WithPageCountSchema = <T extends z.ZodTypeAny>(
 		[key]: data,
 	});
 
-export const GenericSchema = <O extends z.ZodObject, T extends z.ZodTypeAny>(
-	key: string,
+export const GenericSchema = <
+	O extends z.ZodObject,
+	K extends string | string[],
+	T extends z.ZodTypeAny,
+>(
 	obj: O,
-	data: T,
+	key: K,
+	data: K extends string[] ? T[] : T,
 ) => {
-	return obj.extend({
-		[key]: data,
-	});
+	const extended = Array.isArray(key)
+		? key.reduce(
+				(acc, key, i) => {
+					acc[key] = (data as T[])[i];
+					return acc;
+				},
+				{} as Record<string, z.ZodTypeAny>,
+			)
+		: { [key as string]: data };
+
+	return obj.extend(extended);
 };

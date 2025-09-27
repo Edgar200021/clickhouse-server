@@ -14,5 +14,6 @@ export default defineConfig({
 		root: "./tests",
 		// isolate: false,
 		testTimeout: 30000,
+		hookTimeout: 30000,
 	},
 });

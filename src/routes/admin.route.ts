@@ -47,15 +47,29 @@ import {
 	CreateProductSkuResponseSchema,
 } from "../schemas/product-sku/create-product-sku.schema.js";
 import {
-	GetProductsSkusRequestQuerySchema,
-	GetProductsSkusResponseSchema,
-} from "../schemas/product-sku/get-products-skus.schema.js";
+	GetProductsSkusAdminRequestQuerySchema,
+	GetProductsSkusAdminResponseSchema,
+} from "../schemas/product-sku/get-products-skus-admin.schema.js";
 import { ProductSkuAdminSchema } from "../schemas/product-sku/product-sku.schema.js";
 import { ProductSkuParamSchema } from "../schemas/product-sku/product-sku-param.schema.js";
 import {
 	UpdateProductSkuRequestSchema,
 	UpdateProductSkuResponseSchema,
 } from "../schemas/product-sku/update-product-sku.schema.js";
+import {
+	CreatePromocodeRequestSchema,
+	CreatePromocodeResponseSchema,
+} from "../schemas/promocode/create-promocode.schema.js";
+import {
+	GetPromocodesRequestQuerySchema,
+	GetPromocodesResponseSchema,
+} from "../schemas/promocode/get-promocodes.schema.js";
+import { PromocodeAdminSchema } from "../schemas/promocode/promocode.schema.js";
+import { PromocodeParamSchema } from "../schemas/promocode/promocode-param.schema.js";
+import {
+	UpdatePromocodeRequestSchema,
+	UpdatePromocodeResponseSchema,
+} from "../schemas/promocode/update-promocode.schema.js";
 import { BlockToggleRequestSchema } from "../schemas/user/block-toggle.schema.js";
 import {
 	GetUsersRequestQuerySchema,
@@ -72,6 +86,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		userService,
 		productService,
 		productSkuService,
+		promocodeService,
 	} = fastify;
 
 	const multipartOnly = async (req: FastifyRequest, reply: FastifyReply) => {
@@ -549,9 +564,9 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		"/admin/products-sku",
 		{
 			schema: {
-				querystring: GetProductsSkusRequestQuerySchema,
+				querystring: GetProductsSkusAdminRequestQuerySchema,
 				response: {
-					200: SuccessResponseSchema(GetProductsSkusResponseSchema),
+					200: SuccessResponseSchema(GetProductsSkusAdminResponseSchema),
 					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
 				tags: ["Admin"],
@@ -560,6 +575,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		async (req, reply) => {
 			const { pageCount, productsSkus } = await productSkuService.getAll(
 				req.query,
+				UserRole.Admin,
 			);
 
 			reply.status(200).send({
@@ -593,7 +609,7 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 				params: ProductSkuParamSchema,
 				response: {
 					200: SuccessResponseSchema(
-						GenericSchema("product", ProductSkuAdminSchema, ProductAdminSchema),
+						GenericSchema(ProductSkuAdminSchema, "product", ProductAdminSchema),
 					),
 					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
 				},
@@ -785,8 +801,8 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		{
 			schema: {
 				params: GenericSchema(
-					"imageId",
 					ProductSkuParamSchema,
+					"imageId",
 					z.coerce.number().positive(),
 				),
 				response: {
@@ -811,8 +827,8 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		{
 			schema: {
 				params: GenericSchema(
-					"packageId",
 					ProductSkuParamSchema,
+					"packageId",
 					z.coerce.number().positive(),
 				),
 				response: {
@@ -825,6 +841,160 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		async (req, reply) => {
 			await productSkuService.deletePackage(req.params, req.log);
 
+			reply.status(200).send({
+				status: "success",
+				data: null,
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/promocode",
+		{
+			schema: {
+				querystring: GetPromocodesRequestQuerySchema,
+				response: {
+					201: SuccessResponseSchema(GetPromocodesResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const { pageCount, promocodes } = await promocodeService.getAll(
+				req.query,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					pageCount,
+					promocodes: promocodes.map((promocode) => ({
+						...promocode,
+						createdAt: promocode.createdAt.toISOString(),
+						updatedAt: promocode.updatedAt.toISOString(),
+						validFrom: promocode.validFrom.toISOString(),
+						validTo: promocode.validTo.toISOString(),
+					})),
+				},
+			});
+		},
+	);
+
+	fastify.get(
+		"/admin/promocode/:promocodeId",
+		{
+			schema: {
+				params: PromocodeParamSchema,
+				response: {
+					201: SuccessResponseSchema(PromocodeAdminSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const promocode = await promocodeService.get({
+				type: "id",
+				id: req.params.promocodeId,
+			});
+
+			if (!promocode) {
+				req.log.info(req.params, "promocode not found");
+				throw httpErrors.notFound("Promocode not found");
+			}
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...promocode,
+					createdAt: promocode.createdAt.toISOString(),
+					updatedAt: promocode.updatedAt.toISOString(),
+					validFrom: promocode.validFrom.toISOString(),
+					validTo: promocode.validTo.toISOString(),
+				},
+			});
+		},
+	);
+
+	fastify.post(
+		"/admin/promocode",
+		{
+			schema: {
+				body: CreatePromocodeRequestSchema,
+				response: {
+					201: SuccessResponseSchema(CreatePromocodeResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			const promocode = await promocodeService.create(req.body, req.log);
+
+			reply.status(201).send({
+				status: "success",
+				data: {
+					...promocode,
+					createdAt: promocode.createdAt.toISOString(),
+					updatedAt: promocode.updatedAt.toISOString(),
+					validFrom: promocode.validFrom.toISOString(),
+					validTo: promocode.validTo.toISOString(),
+				},
+			});
+		},
+	);
+
+	fastify.patch(
+		"/admin/promocode/:promocodeId",
+		{
+			schema: {
+				body: UpdatePromocodeRequestSchema,
+				params: PromocodeParamSchema,
+				response: {
+					200: SuccessResponseSchema(UpdatePromocodeResponseSchema),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Admin"],
+			},
+		},
+		async (req, reply) => {
+			if (Object.keys(req.body).length === 0) {
+				throw httpErrors.badRequest("Request body is empty");
+			}
+
+			const promocode = await promocodeService.update(
+				req.body,
+				req.params,
+				req.log,
+			);
+
+			reply.status(200).send({
+				status: "success",
+				data: {
+					...promocode,
+					createdAt: promocode.createdAt.toISOString(),
+					updatedAt: promocode.updatedAt.toISOString(),
+					validFrom: promocode.validFrom.toISOString(),
+					validTo: promocode.validTo.toISOString(),
+				},
+			});
+		},
+	);
+
+	fastify.delete(
+		"/admin/promocode/:promocodeId",
+		{
+			schema: {
+				params: PromocodeParamSchema,
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+			},
+		},
+		async (req, reply) => {
+			await promocodeService.remove(req.params, req.log);
 			reply.status(200).send({
 				status: "success",
 				data: null,

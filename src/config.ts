@@ -75,6 +75,10 @@ export const configSchema = z.object({
 		secure: z.enum(["true", "false"]).transform((value) => value === "true"),
 		uploadFolder: z.string(),
 	}),
+	exchangeRate: z.object({
+		baseUrl: z.string().nonempty(),
+		apiKey: z.string().nonempty(),
+	}),
 	rateLimit: z.object({
 		globalLimit: z.coerce.number().min(10).max(100).default(100).optional(),
 		notFoundLimit: z.coerce.number().min(3).max(5).default(5).optional(),
@@ -97,6 +101,44 @@ export const configSchema = z.object({
 			.max(100)
 			.default(100)
 			.optional(),
+		getProductsSkusLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
+		getProductskuLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
+		getCartLimit: z.coerce.number().min(20).max(100).default(100).optional(),
+		addCartPromocodeLimit: z.coerce
+			.number()
+			.min(3)
+			.max(5)
+			.default(3)
+			.optional(),
+		addCartItemLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
+		updateCartItemLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
+		deleteCartItemLimit: z.coerce
+			.number()
+			.min(20)
+			.max(100)
+			.default(100)
+			.optional(),
+		clearCartLimit: z.coerce.number().min(20).max(100).default(100).optional(),
 	}),
 });
 
@@ -166,6 +208,10 @@ export function setupConfig(): Config {
 			secure: process.env.CLOUDINARY_SECURE,
 			uploadFolder: process.env.CLOUDINARY_UPLOAD_FOLDER,
 		},
+		exchangeRate: {
+			baseUrl: process.env.EXCHANGE_RATE_BASE_URL,
+			apiKey: process.env.EXCHANGE_RATE_API_KEY,
+		},
 		rateLimit: {
 			globalLimit: process.env.RATE_LIMIT_GLOBAL,
 			notFoundLimit: process.env.RATE_LIMIT_NOT_FOUND,
@@ -176,6 +222,16 @@ export function setupConfig(): Config {
 			resetPasswordLimit: process.env.RATE_LIMIT_RESET_PASSWORD,
 			logoutLimit: process.env.RATE_LIMIT_LOGOUT,
 			oauthSignIn: process.env.RATE_LIMIT_OAUTH_SIGN_IN,
+			getMeLimit: process.env.RATE_LIMIT_GET_ME,
+			getCategoriesLimit: process.env.RATE_LIMIT_GET_CATEGORIES,
+			getProductsSkusLimit: process.env.RATE_LIMIT_GET_PRODUCTS_SKUS,
+			getProductskuLimit: process.env.RATE_LIMIT_GET_PRODUCT_SKU,
+			getCartLimit: process.env.RATE_LIMIT_GET_CART,
+			addCartPromocodeLimit: process.env.RATE_LIMIT_ADD_CART_PROMOCODE,
+			addCartItemLimit: process.env.RATE_LIMIT_ADD_CART_ITEM,
+			updateCartItemLimit: process.env.RATE_LIMIT_UPDATE_CART_ITEM,
+			deleteCartItemLimit: process.env.RATE_LIMIT_DELETE_CART_ITEM,
+			clearCartLimit: process.env.RATE_LIMIT_CLEAR_CART,
 		},
 	});
 

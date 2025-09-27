@@ -1,11 +1,11 @@
-import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import {
 	ErrorResponseSchema,
 	SuccessResponseSchema,
 } from "../schemas/base.schema.js";
 import { UserSchema } from "../schemas/user/user.schema.js";
 
-const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	fastify.get(
 		"/user",
 		{

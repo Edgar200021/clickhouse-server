@@ -5,6 +5,7 @@ import { VerificationPrefix } from "../../../src/const/redis.js";
 import { SignUpPasswordMinLength } from "../../../src/const/zod.js";
 import { buildTestApp } from "../../testApp.js";
 
+const x = 3
 describe("Authentication", () => {
 	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
 	const user = {

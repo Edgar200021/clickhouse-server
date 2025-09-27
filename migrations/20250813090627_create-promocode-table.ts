@@ -11,10 +11,10 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("id", "integer", (col) =>
 			col.primaryKey().generatedAlwaysAsIdentity(),
 		)
-		.addColumn("created_at", "timestamp", (col) =>
+		.addColumn("created_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("updated_at", "timestamp", (col) =>
+		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
 		.addColumn("code", "varchar(50)", (col) => col.notNull().unique())
@@ -22,8 +22,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("discount_value", sql`numeric(10,2)`, (col) => col.notNull())
 		.addColumn("usage_limit", "integer", (col) => col.notNull())
 		.addColumn("usage_count", "integer", (col) => col.notNull().defaultTo(0))
-		.addColumn("valid_from", "timestamp", (col) => col.notNull())
-		.addColumn("valid_to", "timestamp", (col) => col.notNull())
+		.addColumn("valid_from", "timestamptz", (col) => col.notNull())
+		.addColumn("valid_to", "timestamptz", (col) => col.notNull())
 		.execute();
 }
 

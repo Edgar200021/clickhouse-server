@@ -1,5 +1,4 @@
 import { faker } from "@faker-js/faker/locale/ur";
-import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { SignUpPasswordMinLength } from "../../../../src/const/zod.js";
 import type { Category } from "../../../../src/types/db/category.js";
@@ -26,7 +25,7 @@ describe("Admin", () => {
 		await testApp.close();
 	});
 
-	describe("Create Category", () => {
+	describe("Delete Category", () => {
 		it("Should return 200 status code when request is successfull", async () => {
 			const deleteCategoryRes = await testApp.withSignIn<
 				Parameters<typeof testApp.deleteCategory>["1"][],
@@ -39,8 +38,6 @@ describe("Admin", () => {
 				},
 				UserRole.Admin,
 			);
-
-			console.log(deleteCategoryRes);
 
 			expect(deleteCategoryRes.statusCode).toBe(200);
 		});
