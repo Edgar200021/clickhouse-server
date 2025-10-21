@@ -1,14 +1,13 @@
-import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { PostgreSqlContainer } from "@testcontainers/postgresql";
+import { RedisContainer } from "@testcontainers/redis";
 import type {
 	FastifyInstance,
 	InjectOptions,
 	LightMyRequestResponse,
 } from "fastify";
-import { dbCreate } from "../scripts/db-create.js";
 import { runMigrations } from "../scripts/db-migrate.js";
 import { runSeed } from "../scripts/db-seed.js";
-import { dbDelete } from "../scripts/dp-delete.js";
 import { buildApp } from "../src/app.js";
 import { setupConfig } from "../src/config.js";
 import { MaxCartItemCount } from "../src/const/const.js";
@@ -17,6 +16,7 @@ import type { CartItem } from "../src/types/db/cart.js";
 import type { Category } from "../src/types/db/category.js";
 import type { UserRole } from "../src/types/db/db.js";
 import type { Manufacturer } from "../src/types/db/manufacturer.js";
+import type { Order } from "../src/types/db/order.js";
 import type {
 	Product,
 	ProductSku,
@@ -41,7 +41,24 @@ export const PdfPath = path.join(import.meta.dirname, "./assets/food.pdf");
 export const TxtPath = path.join(import.meta.dirname, "./assets/text.txt");
 export const HtmlPath = path.join(import.meta.dirname, "./assets/index.html");
 
-interface TestApp {
+export const omit = <T extends Record<string, unknown>>(
+	obj: T,
+	key: keyof T | (keyof T)[],
+) => {
+	const copied = structuredClone(obj);
+
+	if (Array.isArray(key)) {
+		for (const k of key) {
+			delete copied[k];
+		}
+	} else {
+		delete copied[key];
+	}
+
+	return copied;
+};
+
+export interface TestApp {
 	app: FastifyInstance;
 	close: () => Promise<void>;
 	signUp: typeof signUp;
@@ -57,9 +74,14 @@ interface TestApp {
 	getProductsSkus: typeof getProductsSkus;
 	getProductSku: typeof getProductSku;
 	getCart: typeof getCart;
+	addCartPromocode: typeof addCartPromocode;
+	deleteCartPromocode: typeof deleteCartPromocode;
 	addCartItem: typeof addCartItem;
 	updateCartItem: typeof updateCartItem;
 	deleteCartItem: typeof deleteCartItem;
+	createOrder: typeof createOrder;
+	getOrder: typeof getOrder;
+	getOrders: typeof getOrders;
 
 	// Admin routes
 	createCategory: typeof createCategory;
@@ -299,6 +321,28 @@ async function getCart(
 	});
 }
 
+async function addCartPromocode(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/cart/promocode`,
+		...options,
+	});
+}
+
+async function deleteCartPromocode(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "DELETE",
+		url: `/api/v1/cart/promocode`,
+		...options,
+	});
+}
+
 async function addCartItem(
 	this: TestApp,
 	options?: Omit<InjectOptions, "method" | "url">,
@@ -330,6 +374,40 @@ async function deleteCartItem(
 	return await this.app.inject({
 		method: "DELETE",
 		url: `/api/v1/cart/items/${cartItemId}`,
+		...options,
+	});
+}
+
+async function createOrder(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/order`,
+		...options,
+	});
+}
+
+async function getOrders(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/order`,
+		...options,
+	});
+}
+
+async function getOrder(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+	orderNumber?: Order["number"],
+) {
+	return await this.app.inject({
+		method: "GET",
+		url: `/api/v1/order/${orderNumber}`,
 		...options,
 	});
 }
@@ -633,7 +711,21 @@ async function deletePromocode(
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
-	config.database.name = randomUUID();
+	const [postgresContainer, redisContainer] = await Promise.all([
+		new PostgreSqlContainer("postgres:16-alpine").start(),
+		new RedisContainer("redis:7").withExposedPorts(6379).start(),
+	]);
+
+	config.database.host = postgresContainer.getHost();
+	config.database.port = postgresContainer.getPort();
+	config.database.name = postgresContainer.getDatabase();
+	config.database.user = postgresContainer.getUsername();
+	config.database.password = postgresContainer.getPassword();
+
+	config.redis.host = redisContainer.getHost();
+	config.redis.port = redisContainer.getMappedPort(6379);
+	config.redis.password = redisContainer.getPassword();
+
 	config.rateLimit.signUpLimit = MaxCartItemCount + 5;
 	config.rateLimit.signInLimit = MaxCartItemCount + 5;
 	config.rateLimit.notFoundLimit = 10;
@@ -643,24 +735,21 @@ export async function buildTestApp(): Promise<TestApp> {
 	config.rateLimit.getMeLimit = 5;
 	config.rateLimit.getCartLimit = 5;
 	config.rateLimit.addCartItemLimit = MaxCartItemCount + 2;
+	config.rateLimit.createOrderLimit = 50;
 
 	config.logger.logToFile = false;
-	process.env.DATABASE_URL = `postgresql://${config.database.user}:${config.database.password}@${config.database.host}:${config.database.port}/${config.database.name}`;
 
-	await dbCreate(config.database);
-	await runMigrations();
-	await runSeed();
+	await runMigrations(postgresContainer.getConnectionUri());
+	await runSeed(postgresContainer.getConnectionUri());
 
 	const fastify = await buildApp(config);
-
-	await fastify.redis.select(15);
-	await fastify.redis.flushdb();
 
 	return {
 		app: fastify,
 		async close() {
 			await fastify.close();
-			await dbDelete(config.database);
+			await redisContainer.stop({ remove: true, removeVolumes: true });
+			await postgresContainer.stop({ removeVolumes: true, remove: true });
 		},
 		signUp,
 		accountVerification,
@@ -674,9 +763,14 @@ export async function buildTestApp(): Promise<TestApp> {
 		getProductsSkus,
 		getProductSku,
 		getCart,
+		addCartPromocode,
+		deleteCartPromocode,
 		addCartItem,
 		updateCartItem,
 		deleteCartItem,
+		createOrder,
+		getOrders,
+		getOrder,
 
 		getCategories,
 		createCategory,
@@ -705,4 +799,14 @@ export async function buildTestApp(): Promise<TestApp> {
 		updatePromocode,
 		deletePromocode,
 	};
+}
+
+export async function withTestApp(fn: (app: TestApp) => Promise<void>) {
+	const app = await buildTestApp();
+
+	try {
+		await fn(app);
+	} finally {
+		await app.close();
+	}
 }

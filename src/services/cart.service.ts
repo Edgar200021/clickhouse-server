@@ -5,10 +5,16 @@ import { ForeignKeyConstraintCode } from "../const/database.js";
 import type { AddCartItemRequest } from "../schemas/cart/add-cart-item.schema.js";
 import type { AddCartPromocodeRequest } from "../schemas/cart/add-cart-promocode.schema.js";
 import type { CartItemParam } from "../schemas/cart/cart-item-param.schema.js";
+import type { GetCartRequestQuery } from "../schemas/cart/get-cart.schema.js";
 import type { UpdateCartItemRequest } from "../schemas/cart/update-cart-item.schema.js";
 import type { Combined, Nullable } from "../types/base.js";
-import type { CartItem } from "../types/db/cart.js";
-import { Currency, type DB } from "../types/db/db.js";
+import type { Cart, CartItem } from "../types/db/cart.js";
+import {
+	Currency,
+	type DB,
+	OrderStatus,
+	PromocodeType,
+} from "../types/db/db.js";
 import { isDatabaseError } from "../types/db/error.js";
 import type {
 	Product,
@@ -24,17 +30,27 @@ export function createCartService(instance: FastifyInstance) {
 		httpErrors,
 		productSkuService,
 		promocodeService,
-		priceService: { applyPromocode, convertCurrency, transformPrice },
+		priceService: {
+			applyPromocode,
+			convertCurrency,
+			transformPrice,
+			getExchangeRates,
+		},
 	} = instance;
 
-	async function getCart(userId: User["id"]): Promise<{
+	async function getCart(
+		userId: User["id"],
+		query: GetCartRequestQuery,
+		log: FastifyBaseLogger,
+	): Promise<{
 		totalPrice: number;
+		currency: Currency;
 		promocode: Nullable<
-			Pick<Promocode, "code" | "type" | "discountValue" | "validTo">
+			Pick<Promocode, "id" | "code" | "type" | "discountValue" | "validTo">
 		>;
 		cartItems: Combined<
 			Pick<CartItem, "id" | "quantity"> &
-				Pick<ProductSku, "sku" | "currency" | "price" | "salePrice"> & {
+				Pick<ProductSku, "sku" | "price" | "salePrice"> & {
 					images: Pick<ProductSkuImages, "id" | "imageId" | "imageUrl">[];
 					productSkuId: ProductSku["id"];
 					productSkuQuantity: ProductSku["quantity"];
@@ -67,37 +83,94 @@ export function createCartService(instance: FastifyInstance) {
 				})) ?? null;
 		}
 
-		const { totalPrice } = await calculateCartInfo(userId);
+		const hasPromocode = promocode && promocodeService.isValid(promocode).valid;
+
+		if (query.currencyTo) {
+			const exchangeRates = await getExchangeRates(log);
+
+			if (!exchangeRates) {
+				throw httpErrors.serviceUnavailable(
+					"Currency conversion temporarily unavailable",
+				);
+			}
+		}
+
+		const { totalPrice } = await calculateCartInfo(
+			userId,
+			query.currencyTo
+				? { currencyFrom: Currency.Rub, currencyTo: query.currencyTo }
+				: undefined,
+		);
+
+		if (
+			query.currencyTo &&
+			hasPromocode &&
+			promocode!.type === PromocodeType.Fixed
+		) {
+			promocode!.discountValue = convertCurrency(
+				Number(promocode!.discountValue),
+				Currency.Rub,
+				query.currencyTo,
+			).toString();
+		}
+
+		const withPromocodePrice = hasPromocode
+			? applyPromocode(totalPrice, promocode!)
+			: totalPrice;
 
 		return {
-			totalPrice: promocode
-				? applyPromocode(totalPrice, promocode)
-				: totalPrice,
-			promocode: promocode
+			totalPrice: transformPrice(withPromocodePrice, Currency.Rub, "read"),
+			currency: query.currencyTo ? query.currencyTo : Currency.Rub,
+			promocode: hasPromocode
 				? {
-						code: promocode.code,
-						type: promocode.type,
-						discountValue: promocode.discountValue,
-						validTo: promocode.validTo,
+						id: promocode!.id,
+						code: promocode!.code,
+						type: promocode!.type,
+						discountValue:
+							promocode!.type === PromocodeType.Fixed
+								? transformPrice(
+										Number(promocode!.discountValue),
+										query.currencyTo ? query.currencyTo : Currency.Rub,
+										"read",
+									).toString()
+								: promocode!.discountValue,
+						validTo: promocode!.validTo,
 					}
 				: null,
-			cartItems: products.map((p) => ({
-				id: p.cartItemId,
-				productSkuId: p.id,
-				quantity: p.cartItemQuantity,
-				productSkuQuantity: p.quantity,
-				currency: p.currency,
-				price: transformPrice(p.price, p.currency, "read"),
-				salePrice: p.salePrice
-					? transformPrice(p.salePrice, p.currency, "read")
-					: null,
-				images: p.images ?? [],
-				sku: p.sku,
-				product: {
-					name: p.name,
-					shortDescription: p.shortDescription,
-				},
-			})),
+			cartItems: products.map((p) => {
+				const convertedPrice = query.currencyTo
+					? convertCurrency(p.price, Currency.Rub, query.currencyTo)
+					: p.price;
+				const convertedSalePrice =
+					p.salePrice && query.currencyTo
+						? convertCurrency(p.salePrice, Currency.Rub, query.currencyTo)
+						: p.salePrice;
+
+				return {
+					id: p.cartItemId,
+					productSkuId: p.id,
+					quantity: p.cartItemQuantity,
+					productSkuQuantity: p.quantity,
+					price: transformPrice(
+						convertedPrice,
+						query.currencyTo ? query.currencyTo : Currency.Rub,
+						"read",
+					),
+					salePrice: convertedSalePrice
+						? transformPrice(
+								convertedSalePrice,
+								query.currencyTo ? query.currencyTo : Currency.Rub,
+								"read",
+							)
+						: null,
+					images: p.images ?? [],
+					sku: p.sku,
+					product: {
+						name: p.name,
+						shortDescription: p.shortDescription,
+					},
+				};
+			}),
 		};
 	}
 
@@ -106,32 +179,90 @@ export function createCartService(instance: FastifyInstance) {
 		data: AddCartPromocodeRequest,
 		log: FastifyBaseLogger,
 	): Promise<Pick<Promocode, "code" | "type" | "discountValue" | "validTo">> {
-		const cartId = await getUserCartId(userId);
+		const cart = await getUserCart(userId, {
+			log,
+			logMsg: "Add cart promocode failed: cart not found",
+		});
 
-		if (!cartId) {
-			log.info({ userId }, "Add cart promocode failed: cart not found");
-			throw httpErrors.notFound("Cart not found");
+		const promocode = await promocodeService.get(
+			{
+				type: "code",
+				code: data.promocode,
+			},
+			{
+				validate: true,
+				onError: (msg) => log.info(`Add cart promocode failed: ${msg}`),
+			},
+		);
+
+		const isValid = promocodeService.isValid(promocode);
+
+		if (!isValid.valid) {
+			log.info(
+				{ promocodeId: promocode.id },
+				`Add cart promocode failed: ${isValid.reason}`,
+			);
+			throw httpErrors.badRequest("Promocode is not valid");
 		}
 
-		const { id, code, type, discountValue, validTo } =
-			await promocodeService.get(
-				{
-					type: "code",
-					code: data.promocode,
-				},
-				{
-					validate: true,
-					onError: (msg) => log.info(`Add cart promocode failed: ${msg}`),
-				},
+		const isUsed = await kysely
+			.selectFrom("order")
+			.where((eb) =>
+				eb.and([
+					eb("status", "!=", OrderStatus.Cancelled),
+					eb("promocodeId", "=", promocode.id),
+					eb("userId", "=", userId),
+				]),
+			)
+			.executeTakeFirst();
+
+		if (isUsed) {
+			log.info(
+				{ promocodeId: promocode.id, userId },
+				"Add cart promocode failed: promocode already used in a previous order",
 			);
+			throw httpErrors.badRequest(
+				"This promocode has already been used in a previous order",
+			);
+		}
 
 		await kysely
 			.updateTable("cart")
-			.set({ promocodeId: id })
-			.where("id", "=", cartId)
+			.set({ promocodeId: promocode.id })
+			.where("id", "=", cart.id)
 			.execute();
 
-		return { code, type, discountValue, validTo };
+		return {
+			code: promocode.code,
+			type: promocode.type,
+			discountValue: promocode.discountValue,
+			validTo: promocode.validTo,
+		};
+	}
+
+	async function deletePromocode(
+		userId: User["id"],
+		log: FastifyBaseLogger,
+		trx?: Transaction<DB>,
+	) {
+		const cart = await getUserCart(userId, {
+			log,
+			logMsg: "Delete cart promocode failed: cart not found",
+		});
+
+		if (!cart.promocodeId) {
+			log.info(
+				{ userId },
+				"Delete cart promocode failed: cart doesn't have a promocode",
+			);
+			throw httpErrors.badRequest("Cart doesn't have a promocode");
+		}
+
+		await (trx ?? kysely)
+			.updateTable("cart")
+			.set({ promocodeId: null })
+			.where("id", "=", cart.id)
+			.execute();
 	}
 
 	async function addCartItem(
@@ -140,15 +271,18 @@ export function createCartService(instance: FastifyInstance) {
 		log: FastifyBaseLogger,
 	) {
 		try {
-			const cartId = await getUserCartId(userId);
+			const cart = await getUserCart(userId, {
+				log,
+				logMsg: "Add cart item failed: cart not found",
+			});
 
-			if (!cartId) {
+			if (!cart) {
 				log.info({ userId }, "Add cart item failed: cart not found");
 				throw httpErrors.notFound("Cart not found");
 			}
 
-			const cartInfo = await calculateCartInfo(userId);
-			if (cartInfo.count >= MaxCartItemCount) {
+			const { count } = await calculateCartInfo<"count">(userId);
+			if (count >= MaxCartItemCount) {
 				log.info({ userId }, "Add cart item failed: сart item limit exceeded");
 				throw httpErrors.badRequest("Cart item limit exceeded");
 			}
@@ -156,7 +290,7 @@ export function createCartService(instance: FastifyInstance) {
 			await kysely
 				.insertInto("cartItem")
 				.values({
-					cartId,
+					cartId: cart.id,
 					quantity: data.quantity,
 					productSkuId: data.productSkuId,
 				})
@@ -189,16 +323,14 @@ export function createCartService(instance: FastifyInstance) {
 		param: CartItemParam,
 		log: FastifyBaseLogger,
 	) {
-		const cartId = await getUserCartId(userId);
-
-		if (!cartId) {
-			log.info({ userId }, "Update cart item failed: cart not found");
-			throw httpErrors.notFound("Cart not found");
-		}
+		const cart = await getUserCart(userId, {
+			log,
+			logMsg: "Update cart item failed: cart not found",
+		});
 
 		const row = await kysely
 			.updateTable("cartItem")
-			.where("cartId", "=", cartId)
+			.where("cartId", "=", cart.id)
 			.where("cartItem.id", "=", param.cartItemId)
 			.set({
 				quantity: data.quantity,
@@ -220,16 +352,14 @@ export function createCartService(instance: FastifyInstance) {
 		param: CartItemParam,
 		log: FastifyBaseLogger,
 	) {
-		const cartId = await getUserCartId(userId);
-
-		if (!cartId) {
-			log.info({ userId }, "Delete cart item failed: cart not found");
-			throw httpErrors.notFound("Cart not found");
-		}
+		const cart = await getUserCart(userId, {
+			log,
+			logMsg: "Delete cart item failed: cart not found",
+		});
 
 		const row = await kysely
 			.deleteFrom("cartItem")
-			.where("cartId", "=", cartId)
+			.where("cartId", "=", cart.id)
 			.where("cartItem.id", "=", param.cartItemId)
 			.returning("id")
 			.executeTakeFirst();
@@ -244,16 +374,19 @@ export function createCartService(instance: FastifyInstance) {
 	}
 
 	async function clearCart(userId: User["id"], log: FastifyBaseLogger) {
-		const cartId = await getUserCartId(userId);
+		const cart = await getUserCart(userId, {
+			log,
+			logMsg: "Clear cart failed: cart not found",
+		});
 
-		if (!cartId) {
-			log.info({ userId }, "Delete cart item failed: cart not found");
+		if (!cart) {
+			log.info({ userId }, "Clear cart failed: cart not found");
 			throw httpErrors.notFound("Cart not found");
 		}
 
 		await kysely
 			.deleteFrom("cartItem")
-			.where("cartId", "=", cartId)
+			.where("cartId", "=", cart.id)
 			.returning("id")
 			.executeTakeFirst();
 	}
@@ -274,20 +407,59 @@ export function createCartService(instance: FastifyInstance) {
 		}
 	}
 
-	async function getUserCartId(userId: User["id"]) {
+	async function getUserCart<
+		T extends
+			| {
+					log: FastifyBaseLogger;
+					logMsg: string;
+					clientMsg?: string;
+			  }
+			| undefined = undefined,
+	>(
+		userId: User["id"],
+		options?: T,
+	): Promise<T extends undefined ? Cart | undefined : Cart> {
 		const row = await kysely
 			.selectFrom("cart")
-			.select("id")
+			.selectAll()
 			.where("userId", "=", userId)
 			.executeTakeFirst();
 
-		return row?.id || undefined;
+		if (options) {
+			if (!row) {
+				options.log.info({ userId }, options.logMsg);
+				throw httpErrors.notFound(options.clientMsg ?? "Cart not found");
+			}
+
+			return row as T extends undefined ? Cart | undefined : Cart;
+		}
+
+		return row as T extends undefined ? Cart | undefined : Cart;
 	}
 
-	async function calculateCartInfo(
+	async function calculateCartInfo<T extends "full" | "count" = "full">(
 		userId: User["id"],
-		currency: Currency = Currency.Rub,
-	) {
+		options?: {
+			currencyFrom: Currency;
+			currencyTo: Currency;
+		},
+		type: T = "full" as T,
+	): Promise<
+		T extends "full" ? { count: number; totalPrice: number } : { count: number }
+	> {
+		if (type === "count") {
+			const [res] = await kysely
+				.selectFrom("cartItem")
+				.select((eb) => eb.fn.countAll().as("count"))
+				.innerJoin("cart", "cart.id", "cartItem.cartId")
+				.where("cart.userId", "=", userId)
+				.execute();
+
+			return { count: Number(res.count) } as T extends "full"
+				? { count: number; totalPrice: number }
+				: { count: number };
+		}
+
 		const items = await kysely
 			.selectFrom("cartItem")
 			.innerJoin("cart", "cart.id", "cartItem.cartId")
@@ -295,7 +467,6 @@ export function createCartService(instance: FastifyInstance) {
 			.select([
 				"productSku.price",
 				"productSku.salePrice",
-				"productSku.currency",
 				"productSku.quantity as stock",
 				"cartItem.quantity",
 			])
@@ -305,19 +476,24 @@ export function createCartService(instance: FastifyInstance) {
 		const totalPrice = items.reduce((acc, item) => {
 			const price = item.salePrice ?? item.price;
 			const qty = Math.min(item.quantity, item.stock);
-			const priceConverted = convertCurrency(price, item.currency, currency);
+			const priceConverted = options
+				? convertCurrency(price, options.currencyFrom, options.currencyTo)
+				: price;
 			return acc + priceConverted * qty;
 		}, 0);
 
 		return {
 			count: items.length,
-			totalPrice: transformPrice(totalPrice, currency, "read"),
-		};
+			totalPrice,
+		} as T extends "full"
+			? { count: number; totalPrice: number }
+			: { count: number };
 	}
 
 	return {
 		getCart,
 		addPromocode,
+		deletePromocode,
 		addCartItem,
 		updateCartItem,
 		deleteCartItem,

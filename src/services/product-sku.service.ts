@@ -20,7 +20,7 @@ import type { ProductSkuParam } from "../schemas/product-sku/product-sku-param.s
 import type { UpdateProductSkuRequest } from "../schemas/product-sku/update-product-sku.schema.js";
 import type { Combined, WithPageCount } from "../types/base.js";
 import type { FileUploadResponse } from "../types/cloudinary.js";
-import { type DB, UserRole } from "../types/db/db.js";
+import { Currency, type DB, UserRole } from "../types/db/db.js";
 import { isDatabaseError } from "../types/db/error.js";
 import type {
 	Product,
@@ -96,10 +96,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 					id: p.id,
 					createdAt: p.createdAt,
 					updatedAt: p.updatedAt,
-					currency: p.currency,
-					price: transformPrice(p.price, p.currency, "read"),
+					price: transformPrice(p.price, Currency.Rub, "read"),
 					salePrice: p.salePrice
-						? transformPrice(p.salePrice, p.currency, "read")
+						? transformPrice(p.salePrice, Currency.Rub, "read")
 						: null,
 					quantity: p.quantity,
 					sku: p.sku,
@@ -128,10 +127,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 			pageCount: Math.ceil(totalCount / query.limit),
 			productsSkus: productsSkus.map((p) => ({
 				id: p.id,
-				currency: p.currency,
-				price: transformPrice(p.price, p.currency, "read"),
+				price: transformPrice(p.price, Currency.Rub, "read"),
 				salePrice: p.salePrice
-					? transformPrice(p.salePrice, p.currency, "read")
+					? transformPrice(p.salePrice, Currency.Rub, "read")
 					: null,
 				quantity: p.quantity,
 				sku: p.sku,
@@ -158,6 +156,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 	): Promise<GetOneResult<T>> {
 		const productSku = await buildAdminProductSku()
 			.where("productSku.id", "=", param.productSkuId)
+			.$if(type === UserRole.Regular, (eb) =>
+				eb.where("product.isDeleted", "=", false),
+			)
 			.executeTakeFirst();
 
 		if (!productSku) {
@@ -170,10 +171,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 				id: productSku.id,
 				createdAt: productSku.createdAt,
 				updatedAt: productSku.updatedAt,
-				currency: productSku.currency,
-				price: transformPrice(productSku.price, productSku.currency, "read"),
+				price: transformPrice(productSku.price, Currency.Rub, "read"),
 				salePrice: productSku.salePrice
-					? transformPrice(productSku.salePrice, productSku.currency, "read")
+					? transformPrice(productSku.salePrice, Currency.Rub, "read")
 					: null,
 				quantity: productSku.quantity,
 				sku: productSku.sku,
@@ -199,10 +199,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 
 		return {
 			id: productSku.id,
-			currency: productSku.currency,
-			price: transformPrice(productSku.price, productSku.currency, "read"),
+			price: transformPrice(productSku.price, Currency.Rub, "read"),
 			salePrice: productSku.salePrice
-				? transformPrice(productSku.salePrice, productSku.currency, "read")
+				? transformPrice(productSku.salePrice, Currency.Rub, "read")
 				: null,
 			quantity: productSku.quantity,
 			sku: productSku.sku,
@@ -242,10 +241,9 @@ export function createProductSkuService(instance: FastifyInstance) {
 					.values({
 						productId: data.productId,
 						sku: randomUUID(),
-						currency: data.currency,
-						price: transformPrice(data.price, data.currency, "store"),
+						price: transformPrice(data.price, Currency.Rub, "store"),
 						salePrice: data.salePrice
-							? transformPrice(data.salePrice, data.currency, "store")
+							? transformPrice(data.salePrice, Currency.Rub, "store")
 							: null,
 						quantity: data.quantity,
 						attributes: sql`
@@ -259,7 +257,6 @@ export function createProductSkuService(instance: FastifyInstance) {
 						"id",
 						"productId",
 						"sku",
-						"currency",
 						"price",
 						"salePrice",
 						"quantity",
@@ -431,7 +428,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 							? {
 									price: transformPrice(
 										updateData.price,
-										updateData.currency ?? productSku.currency,
+										Currency.Rub,
 										"store",
 									),
 								}
@@ -440,7 +437,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 							? {
 									salePrice: transformPrice(
 										updateData.salePrice,
-										updateData.currency ?? productSku.currency,
+										Currency.Rub,
 										"store",
 									),
 								}
@@ -460,7 +457,6 @@ export function createProductSkuService(instance: FastifyInstance) {
 						"id",
 						"productId",
 						"sku",
-						"currency",
 						"price",
 						"salePrice",
 						"quantity",
@@ -702,6 +698,10 @@ export function createProductSkuService(instance: FastifyInstance) {
 	): ExpressionWrapper<DB, "productSku" | "product", SqlBool> {
 		const ands: Expression<SqlBool>[] = [];
 
+		if (role === UserRole.Regular) {
+			ands.push(eb("product.isDeleted", "=", false));
+		}
+
 		if (role === UserRole.Admin && "isDeleted" in query) {
 			if (query.isDeleted !== undefined) {
 				ands.push(eb("product.isDeleted", "=", query.isDeleted));
@@ -727,7 +727,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 				eb(
 					"productSku.price",
 					">=",
-					transformPrice(query.minPrice, query.currency, "store"),
+					transformPrice(query.minPrice, Currency.Rub, "store"),
 				),
 			);
 		}
@@ -737,7 +737,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 				eb(
 					"productSku.price",
 					"<=",
-					transformPrice(query.maxPrice, query.currency, "store"),
+					transformPrice(query.maxPrice, Currency.Rub, "store"),
 				),
 			);
 		}
@@ -747,7 +747,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 				eb(
 					"productSku.salePrice",
 					">=",
-					transformPrice(query.minSalePrice, query.currency, "store"),
+					transformPrice(query.minSalePrice, Currency.Rub, "store"),
 				),
 			);
 		}
@@ -757,7 +757,7 @@ export function createProductSkuService(instance: FastifyInstance) {
 				eb(
 					"productSku.salePrice",
 					"<=",
-					transformPrice(query.maxSalePrice, query.currency, "store"),
+					transformPrice(query.maxSalePrice, Currency.Rub, "store"),
 				),
 			);
 		}

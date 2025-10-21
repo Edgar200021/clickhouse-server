@@ -1,5 +1,4 @@
 import z from "zod";
-import { Currency } from "../../types/db/db.js";
 
 export const ProductSkuImageSchema = z.object({
 	id: z.coerce.number(),
@@ -25,7 +24,6 @@ export const ProductSkuSchema = z.object({
 	id: z.number().positive(),
 	sku: z.string().nonempty(),
 	quantity: z.number().gte(0),
-	currency: z.enum(Currency),
 	price: z.number().positive(),
 	salePrice: z.number().positive().nullable(),
 	attributes: z

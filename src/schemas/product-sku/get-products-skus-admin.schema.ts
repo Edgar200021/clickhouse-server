@@ -23,7 +23,6 @@ export const GetProductsSkusAdminRequestQuerySchema = z
 			.default(GetProductsSkusDefaultLimit),
 		page: z.coerce.number().positive().optional().default(1),
 		sku: z.string().optional(),
-		currency: z.enum(Currency).optional().default(Currency.Rub),
 		minPrice: z.coerce.number().gte(0).optional(),
 		maxPrice: z.coerce.number().positive().optional(),
 		minSalePrice: z.coerce.number().gte(0).optional(),

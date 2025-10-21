@@ -16,7 +16,6 @@ import {
 export const CreateProductSkuRequestSchema = z
 	.object({
 		quantity: z.coerce.number().positive(),
-		currency: z.enum(Currency),
 		price: z.coerce.number().positive(),
 		salePrice: z.coerce.number().positive().optional(),
 		width: z.coerce.number().positive(),

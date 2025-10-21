@@ -19,8 +19,13 @@ ts.register({
 	transpileOnly: true,
 });
 
-export async function runMigrations() {
-	const { stderr } = await execAsync("npm run migration:run");
+export async function runMigrations(databaseUrl?: string) {
+	const { stderr } = await execAsync("npm run migration:run", {
+		env: {
+			...process.env,
+			DATABASE_URL: databaseUrl || process.env.DATABASE_URL,
+		},
+	});
 	if (stderr) {
 		throw new Error(`Seed error: ${stderr}`);
 	}

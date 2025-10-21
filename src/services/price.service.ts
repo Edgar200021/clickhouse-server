@@ -1,3 +1,4 @@
+import type { FastifyBaseLogger } from "fastify";
 import type { FastifyInstance } from "fastify/types/instance.js";
 import { ExchangeRatesKey } from "../const/redis.js";
 import { Currency } from "../types/db/db.js";
@@ -19,7 +20,6 @@ type ExchangeRateResponse =
 	  };
 
 export function createPriceService({
-	log,
 	config,
 	httpErrors,
 	redis,
@@ -33,19 +33,22 @@ export function createPriceService({
 
 	let exchangeRates: Record<Currency, number> | undefined;
 
-	async function getExchangeRates() {
+	async function getExchangeRates(
+		log: FastifyBaseLogger,
+	): Promise<Record<Currency, number> | null> {
 		const cachedRates = await redis.get(ExchangeRatesKey);
 		if (cachedRates)
 			exchangeRates = JSON.parse(cachedRates) as Record<Currency, number>;
 
-		if (exchangeRates) return;
+		if (exchangeRates) return exchangeRates;
 
 		const res = await fetch(exchangeRateRequestUrl);
 		const data: ExchangeRateResponse =
 			(await res.json()) as ExchangeRateResponse;
 
 		if (data.result === "error") {
-			log.error(`Error getting exchange rates: ${data["error-type"]}`);
+			log.info(`Error getting exchange rates: ${data["error-type"]}`);
+			return null;
 		} else {
 			exchangeRates = data.conversion_rates;
 			await redis.setex(
@@ -53,6 +56,7 @@ export function createPriceService({
 				86400,
 				JSON.stringify(data.conversion_rates),
 			);
+			return exchangeRates;
 		}
 	}
 

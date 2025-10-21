@@ -14,7 +14,10 @@ import {
 	AddCartPromocodeResponseSchema,
 } from "../schemas/cart/add-cart-promocode.schema.js";
 import { CartItemParamSchema } from "../schemas/cart/cart-item-param.schema.js";
-import { GetCartResponseSchema } from "../schemas/cart/get-cart.schema.js";
+import {
+	GetCartRequestQuerySchema,
+	GetCartResponseSchema,
+} from "../schemas/cart/get-cart.schema.js";
 import {
 	UpdateCartItemRequestSchema,
 	UpdateCartItemResponseSchema,
@@ -22,6 +25,10 @@ import {
 
 const plugin: FastifyPluginAsyncZod = async (fastify) => {
 	const { cartService, config } = fastify;
+
+	fastify.addHook("onRequest", async (req, reply) => {
+		await req.authenticate(reply);
+	});
 
 	fastify.get(
 		"/cart",
@@ -32,10 +39,8 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					max: config.rateLimit.getCartLimit,
 				},
 			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
-			},
 			schema: {
+				querystring: GetCartRequestQuerySchema,
 				response: {
 					200: SuccessResponseSchema(GetCartResponseSchema),
 					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
@@ -46,19 +51,18 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		async (req, reply) => {
 			const user = req.user;
 			if (!user) return reply.unauthorized("Unautorized");
-			const data = await cartService.getCart(user.id);
+			const data = await cartService.getCart(user.id, req.query, req.log);
 
 			reply.status(200).send({
 				status: "success",
 				data: {
-					totalPrice: data.totalPrice,
+					...data,
 					promocode: data.promocode
 						? {
 								...data.promocode,
 								validTo: data.promocode.validTo.toISOString(),
 							}
 						: null,
-					cartItems: data.cartItems,
 				},
 			});
 		},
@@ -72,9 +76,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					timeWindow: "1 minute",
 					max: config.rateLimit.addCartPromocodeLimit,
 				},
-			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
 			},
 			schema: {
 				body: AddCartPromocodeRequestSchema,
@@ -101,6 +102,35 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 		},
 	);
 
+	fastify.delete(
+		"/cart/promocode",
+		{
+			config: {
+				rateLimit: {
+					timeWindow: "1 minute",
+					max: config.rateLimit.deleteCartPromocodeLimit,
+				},
+			},
+			schema: {
+				response: {
+					200: SuccessResponseSchema(z.null()),
+					400: z.union([ErrorResponseSchema, ValidationErrorResponseSchema]),
+				},
+				tags: ["Cart"],
+			},
+		},
+		async (req, reply) => {
+			const user = req.user;
+			if (!user) return reply.unauthorized("Unautorized");
+			await cartService.deletePromocode(user.id, req.log);
+
+			reply.status(200).send({
+				status: "success",
+				data: null,
+			});
+		},
+	);
+
 	fastify.post(
 		"/cart/items",
 		{
@@ -109,9 +139,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					timeWindow: "1 minute",
 					max: config.rateLimit.addCartItemLimit,
 				},
-			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
 			},
 			schema: {
 				body: AddCartItemRequestSchema,
@@ -143,9 +170,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					timeWindow: "1 minute",
 					max: config.rateLimit.updateCartItemLimit,
 				},
-			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
 			},
 			schema: {
 				params: CartItemParamSchema,
@@ -179,9 +203,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					max: config.rateLimit.deleteCartItemLimit,
 				},
 			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
-			},
 			schema: {
 				params: CartItemParamSchema,
 				response: {
@@ -212,9 +233,6 @@ const plugin: FastifyPluginAsyncZod = async (fastify) => {
 					timeWindow: "1 minute",
 					max: config.rateLimit.clearCartLimit,
 				},
-			},
-			onRequest: async (req, reply) => {
-				await req.authenticate(reply);
 			},
 			schema: {
 				response: {

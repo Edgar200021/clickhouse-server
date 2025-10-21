@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { MaxCartItemCount } from "../../../src/const/const.js";
 import {

@@ -41,7 +41,6 @@ describe("Admin", () => {
 				"productSku.id",
 				"productSku.createdAt",
 				"productSku.updatedAt",
-				"productSku.currency",
 				"productSku.price",
 				"productSku.salePrice",
 				"productSku.quantity",
@@ -250,12 +249,6 @@ describe("Admin", () => {
 					name: "Invalid color",
 					data: {
 						color: 2321,
-					},
-				},
-				{
-					name: "Invalid currency",
-					data: {
-						currency: "Invalid",
 					},
 				},
 				{

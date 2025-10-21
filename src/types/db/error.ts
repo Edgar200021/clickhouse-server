@@ -2,6 +2,7 @@ export type DatabaseError = {
 	table: string;
 	code: string;
 	detail: string;
+	constraint?: string;
 };
 
 export const isDatabaseError = (err: unknown): err is DatabaseError => {

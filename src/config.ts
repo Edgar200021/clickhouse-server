@@ -24,6 +24,8 @@ export const configSchema = z.object({
 		cookieSecure: z
 			.enum(["true", "false"])
 			.transform((value) => value === "true"),
+		orderPaymentTTLMinutes: z.coerce.number().positive().min(10),
+		maxPendingOrdersPerUser: z.coerce.number().min(1).max(3),
 		fastifyCloseGraceDelay: z.coerce
 			.number()
 			.min(500)
@@ -120,6 +122,12 @@ export const configSchema = z.object({
 			.max(5)
 			.default(3)
 			.optional(),
+		deleteCartPromocodeLimit: z.coerce
+			.number()
+			.min(3)
+			.max(5)
+			.default(3)
+			.optional(),
 		addCartItemLimit: z.coerce
 			.number()
 			.min(20)
@@ -139,6 +147,9 @@ export const configSchema = z.object({
 			.default(100)
 			.optional(),
 		clearCartLimit: z.coerce.number().min(20).max(100).default(100).optional(),
+		createOrderLimit: z.coerce.number().min(3).max(5).default(3).optional(),
+		getOrdersLimit: z.coerce.number().min(20).max(100).default(100).optional(),
+		getOrderLimit: z.coerce.number().min(20).max(100).default(100).optional(),
 	}),
 });
 
@@ -163,6 +174,8 @@ export function setupConfig(): Config {
 			oauthStateTTlMinutes: process.env.OAUTH_STATE_TTL_MINUTES,
 			resetPasswordTTLMinutes: process.env.RESET_PASSWORD_TTL_MINUTES,
 			verificationTokenTTLMinutes: process.env.VERIFICATION_TOKEN_TTL_MINUTES,
+			orderPaymentTTLMinutes: process.env.ORDER_PAYMENT_TTL_MINUTES,
+			maxPendingOrdersPerUser: process.env.MAX_PENDING_ORDERS_PER_USER,
 			fastifyCloseGraceDelay: process.env.FASTIFY_CLOSE_GRACE_DELAY,
 		},
 		oauth: {
@@ -228,10 +241,14 @@ export function setupConfig(): Config {
 			getProductskuLimit: process.env.RATE_LIMIT_GET_PRODUCT_SKU,
 			getCartLimit: process.env.RATE_LIMIT_GET_CART,
 			addCartPromocodeLimit: process.env.RATE_LIMIT_ADD_CART_PROMOCODE,
+			deleteCartPromocodeLimit: process.env.RATE_LIMIT_DELETE_CART_PROMOCODE,
 			addCartItemLimit: process.env.RATE_LIMIT_ADD_CART_ITEM,
 			updateCartItemLimit: process.env.RATE_LIMIT_UPDATE_CART_ITEM,
 			deleteCartItemLimit: process.env.RATE_LIMIT_DELETE_CART_ITEM,
 			clearCartLimit: process.env.RATE_LIMIT_CLEAR_CART,
+			createOrderLimit: process.env.RATE_LIMIT_CREATE_ORDER,
+			getOrdersLimit: process.env.RATE_LIMIT_GET_ORDERS,
+			getOrderLimit: process.env.RATE_LIMIT_GET_ORDER,
 		},
 	});
 

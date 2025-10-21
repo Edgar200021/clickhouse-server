@@ -6,7 +6,6 @@ import {
 	type ExpressionWrapper,
 	type SqlBool,
 	sql,
-	type Updateable,
 } from "kysely";
 import { DuplicateCode } from "../const/database.js";
 import type { CreatePromocodeRequest } from "../schemas/promocode/create-promocode.schema.js";

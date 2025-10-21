@@ -6,156 +6,216 @@
 import type { ColumnType } from "kysely";
 
 export enum Currency {
-	Eur = "EUR",
-	Rub = "RUB",
-	Usd = "USD",
+  Eur = "EUR",
+  Rub = "RUB",
+  Usd = "USD",
+}
+
+export enum OrderStatus {
+  Cancelled = "cancelled",
+  Delivered = "delivered",
+  Paid = "paid",
+  Pending = "pending",
+  Shipped = "shipped",
+}
+
+export enum PaymentStatus {
+  Completed = "completed",
+  Failed = "failed",
+  Pending = "pending",
+  Refunded = "refunded",
 }
 
 export enum PromocodeType {
-	Fixed = "fixed",
-	Percent = "percent",
+  Fixed = "fixed",
+  Percent = "percent",
 }
 
 export enum UserRole {
-	Admin = "admin",
-	Regular = "regular",
+  Admin = "admin",
+  Regular = "regular",
 }
 
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
-	? ColumnType<S, I | undefined, U>
-	: ColumnType<T, T | undefined, T>;
+  ? ColumnType<S, I | undefined, U>
+  : ColumnType<T, T | undefined, T>;
 
 export type Numeric = ColumnType<string, number | string, number | string>;
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Cart {
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	promocodeId: number | null;
-	updatedAt: Generated<Timestamp>;
-	userId: string;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  promocodeId: number | null;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
 }
 
 export interface CartItem {
-	cartId: number;
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	productSkuId: number;
-	quantity: number;
-	updatedAt: Generated<Timestamp>;
+  cartId: number;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  productSkuId: number;
+  quantity: number;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface Category {
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	imageId: string | null;
-	imageUrl: string | null;
-	name: string;
-	path: string;
-	updatedAt: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  imageId: string | null;
+  imageUrl: string | null;
+  name: string;
+  path: string;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface Manufacturer {
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	name: string;
-	updatedAt: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  name: string;
+  updatedAt: Generated<Timestamp>;
+}
+
+export interface Order {
+  billingAddressApartment: string;
+  billingAddressCity: string;
+  billingAddressHome: string;
+  billingAddressStreet: string;
+  createdAt: Generated<Timestamp>;
+  currency: Currency;
+  deliveryAddressApartment: string;
+  deliveryAddressCity: string;
+  deliveryAddressHome: string;
+  deliveryAddressStreet: string;
+  email: string;
+  id: Generated<number>;
+  name: string;
+  number: Generated<string>;
+  phoneNumber: string;
+  promocodeId: number | null;
+  status: Generated<OrderStatus>;
+  total: number;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
+}
+
+export interface OrderItem {
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  orderId: number;
+  price: number;
+  productSkuId: number;
+  quantity: number;
+  updatedAt: Generated<Timestamp>;
+}
+
+export interface Payment {
+  amount: number;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  orderId: number;
+  status: Generated<PaymentStatus>;
+  transactionId: string;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface Product {
-	assemblyInstructionFileId: string | null;
-	assemblyInstructionFileUrl: string | null;
-	categoryId: number | null;
-	createdAt: Generated<Timestamp>;
-	description: string;
-	id: Generated<number>;
-	isDeleted: Generated<boolean>;
-	manufacturerId: Generated<number>;
-	materialsAndCare: string;
-	name: string;
-	shortDescription: string;
-	updatedAt: Generated<Timestamp>;
+  assemblyInstructionFileId: string | null;
+  assemblyInstructionFileUrl: string | null;
+  categoryId: number | null;
+  createdAt: Generated<Timestamp>;
+  description: string;
+  id: Generated<number>;
+  isDeleted: Generated<boolean>;
+  manufacturerId: Generated<number>;
+  materialsAndCare: string;
+  name: string;
+  shortDescription: string;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface ProductSku {
-	attributes: string;
-	createdAt: Generated<Timestamp>;
-	currency: Generated<Currency>;
-	id: Generated<number>;
-	price: number;
-	productId: number;
-	quantity: number;
-	salePrice: number | null;
-	sku: string;
-	updatedAt: Generated<Timestamp>;
+  attributes: string;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  price: number;
+  productId: number;
+  quantity: number;
+  salePrice: number | null;
+  sku: string;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface ProductSkuImages {
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	imageId: string;
-	imageUrl: string;
-	productSkuId: number;
-	updatedAt: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  imageId: string;
+  imageUrl: string;
+  productSkuId: number;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface ProductSkuPackage {
-	createdAt: Generated<Timestamp>;
-	height: number;
-	id: Generated<number>;
-	length: number;
-	productSkuId: number;
-	quantity: number;
-	updatedAt: Generated<Timestamp>;
-	weight: number;
-	width: number;
+  createdAt: Generated<Timestamp>;
+  height: number;
+  id: Generated<number>;
+  length: number;
+  productSkuId: number;
+  quantity: number;
+  updatedAt: Generated<Timestamp>;
+  weight: number;
+  width: number;
 }
 
 export interface Promocode {
-	code: string;
-	createdAt: Generated<Timestamp>;
-	discountValue: Numeric;
-	id: Generated<number>;
-	type: PromocodeType;
-	updatedAt: Generated<Timestamp>;
-	usageCount: Generated<number>;
-	usageLimit: number;
-	validFrom: Timestamp;
-	validTo: Timestamp;
+  code: string;
+  createdAt: Generated<Timestamp>;
+  discountValue: Numeric;
+  id: Generated<number>;
+  type: PromocodeType;
+  updatedAt: Generated<Timestamp>;
+  usageCount: Generated<number>;
+  usageLimit: number;
+  validFrom: Timestamp;
+  validTo: Timestamp;
 }
 
 export interface Users {
-	createdAt: Generated<Timestamp>;
-	email: string;
-	facebookId: string | null;
-	googleId: string | null;
-	id: Generated<string>;
-	isBanned: Generated<boolean>;
-	isVerified: Generated<boolean>;
-	password: string | null;
-	role: Generated<UserRole>;
-	updatedAt: Generated<Timestamp>;
+  createdAt: Generated<Timestamp>;
+  email: string;
+  facebookId: string | null;
+  googleId: string | null;
+  id: Generated<string>;
+  isBanned: Generated<boolean>;
+  isVerified: Generated<boolean>;
+  password: string | null;
+  role: Generated<UserRole>;
+  updatedAt: Generated<Timestamp>;
 }
 
 export interface Wishlist {
-	createdAt: Generated<Timestamp>;
-	id: Generated<number>;
-	productSkuId: number;
-	updatedAt: Generated<Timestamp>;
-	userId: string;
+  createdAt: Generated<Timestamp>;
+  id: Generated<number>;
+  productSkuId: number;
+  updatedAt: Generated<Timestamp>;
+  userId: string;
 }
 
 export interface DB {
-	cart: Cart;
-	cartItem: CartItem;
-	category: Category;
-	manufacturer: Manufacturer;
-	product: Product;
-	productSku: ProductSku;
-	productSkuImages: ProductSkuImages;
-	productSkuPackage: ProductSkuPackage;
-	promocode: Promocode;
-	users: Users;
-	wishlist: Wishlist;
+  cart: Cart;
+  cartItem: CartItem;
+  category: Category;
+  manufacturer: Manufacturer;
+  order: Order;
+  orderItem: OrderItem;
+  payment: Payment;
+  product: Product;
+  productSku: ProductSku;
+  productSkuImages: ProductSkuImages;
+  productSkuPackage: ProductSkuPackage;
+  promocode: Promocode;
+  users: Users;
+  wishlist: Wishlist;
 }

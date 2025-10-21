@@ -37,3 +37,12 @@ export const CartItemMaxQuantityPerProduct = 100;
 
 export const GetPromocodesMaxLimit = 100;
 export const GetPromocodesDefaultLimit = 50;
+
+export const CreateOrderNameMaxLength = 40;
+export const CreateOrderCityMaxLength = 100;
+export const CreateOrderStreetMaxLength = 150;
+export const CreateOrderHomeMaxLength = 20;
+export const CreateOrderApartmentMaxLength = 20;
+
+export const GetOrdersMaxLimit = 30;
+export const GetOrdersDefaultLimit = 10;
