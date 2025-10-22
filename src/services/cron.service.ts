@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify/types/instance.js";
 
 import { AsyncTask, SimpleIntervalJob } from "toad-scheduler";
 
-export async function createCronService({
+export function createCronService({
 	userService,
 	orderService,
 	scheduler,

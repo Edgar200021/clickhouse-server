@@ -201,6 +201,14 @@ describe("Order", () => {
 			});
 		});
 
+		it("Should return 401 status code when user is not authorized", async () => {
+			await withTestApp(async (testApp) => {
+				const getOrdersRes = await testApp.getOrders({});
+
+				expect(getOrdersRes.statusCode).toBe(401);
+			});
+		});
+
 		it("Should be rate limited", async () => {
 			await withTestApp(async (testApp) => {
 				await setup(testApp);

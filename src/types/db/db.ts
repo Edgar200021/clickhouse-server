@@ -20,7 +20,9 @@ export enum OrderStatus {
 }
 
 export enum PaymentStatus {
+  Cancelled = "cancelled",
   Completed = "completed",
+  Expired = "expired",
   Failed = "failed",
   Pending = "pending",
   Refunded = "refunded",
@@ -113,11 +115,12 @@ export interface OrderItem {
 
 export interface Payment {
   amount: number;
+  checkoutSessionId: string;
   createdAt: Generated<Timestamp>;
   id: Generated<number>;
   orderId: number;
   status: Generated<PaymentStatus>;
-  transactionId: string;
+  transactionId: string | null;
   updatedAt: Generated<Timestamp>;
 }
 

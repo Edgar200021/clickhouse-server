@@ -3,7 +3,14 @@ import { type Kysely, sql } from "kysely";
 export async function up(db: Kysely<any>): Promise<void> {
 	await db.schema
 		.createType("payment_status")
-		.asEnum(["pending", "completed", "failed", "refunded"])
+		.asEnum([
+			"pending",
+			"completed",
+			"failed",
+			"cancelled",
+			"expired",
+			"refunded",
+		])
 		.execute();
 
 	await db.schema
@@ -17,7 +24,8 @@ export async function up(db: Kysely<any>): Promise<void> {
 		.addColumn("updated_at", "timestamptz", (col) =>
 			col.notNull().defaultTo(sql`now()`),
 		)
-		.addColumn("transaction_id", "text", (col) => col.notNull().unique())
+		.addColumn("checkout_session_id", "text", (col) => col.notNull().unique())
+		.addColumn("transaction_id", "text", (col) => col.unique())
 		.addColumn("amount", "integer", (col) => col.notNull())
 		.addColumn("status", sql`payment_status`, (col) =>
 			col.notNull().defaultTo("pending"),

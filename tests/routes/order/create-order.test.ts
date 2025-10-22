@@ -9,12 +9,7 @@ import {
 	SignUpPasswordMinLength,
 } from "../../../src/const/zod.js";
 import { Currency, OrderStatus } from "../../../src/types/db/db.js";
-import {
-	buildTestApp,
-	omit,
-	type TestApp,
-	withTestApp,
-} from "../../testApp.js";
+import { omit, type TestApp, withTestApp } from "../../testApp.js";
 
 describe("Order", () => {
 	const user = {
@@ -436,6 +431,14 @@ describe("Order", () => {
 				});
 
 				expect(createOrderResponse.statusCode).toBe(400);
+			});
+		});
+
+		it("Should return 401 status code when user is not authorized", async () => {
+			await withTestApp(async (testApp) => {
+				const createOrderRes = await testApp.createOrder();
+
+				expect(createOrderRes.statusCode).toBe(401);
 			});
 		});
 

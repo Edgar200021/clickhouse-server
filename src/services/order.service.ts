@@ -11,6 +11,7 @@ import type { GetOrdersAdminRequestQuery } from "../schemas/order/get-orders-adm
 import type { OrderParam } from "../schemas/order/order-param.schema.js";
 import type { Combined, Nullable, WithPageCount } from "../types/base.js";
 import {
+	Currency,
 	type DB,
 	OrderStatus,
 	PromocodeType,
@@ -240,6 +241,7 @@ export function createOrderService(instance: FastifyInstance) {
 			),
 			orderItems: orderItems.map((item) => {
 				const productSku = productMap.get(item.productSkuId)!;
+
 				return {
 					name: productSku.name,
 					image: productSku.images?.[0]?.imageUrl || "",
@@ -455,6 +457,14 @@ export function createOrderService(instance: FastifyInstance) {
 		});
 	}
 
+	function isOrderExpired(orderCreatedAt: Date) {
+		return (
+			Date.now() >
+			new Date(orderCreatedAt).getTime() +
+				config.application.orderPaymentTTLMinutes * 60000
+		);
+	}
+
 	function buildFilters<T extends UserRole>(
 		query: GetAllQuery<T>,
 		eb: ExpressionBuilder<DB, "order">,
@@ -486,5 +496,6 @@ export function createOrderService(instance: FastifyInstance) {
 		getOneByUserId,
 		create,
 		cancelExpiredOrders,
+		isOrderExpired,
 	};
 }

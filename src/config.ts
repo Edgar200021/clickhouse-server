@@ -10,9 +10,10 @@ export const configSchema = z.object({
 	application: z.object({
 		host: z.string(),
 		port: z.coerce.number().min(1).max(65535),
-		clientUrl: z.string(),
-		clientAccountVerificationPath: z.string(),
-		clientResetPasswordPath: z.string(),
+		clientUrl: z.url(),
+		clientAccountVerificationPath: z.string().trim().nonempty(),
+		clientResetPasswordPath: z.string().trim().nonempty(),
+		clientOrdersPath: z.string().trim().nonempty(),
 		sessionCookieName: z.string(),
 		oauthStateCookieName: z.string(),
 		sessionTTLMinutes: z.coerce.number().min(1440).max(43800),
@@ -80,6 +81,9 @@ export const configSchema = z.object({
 	exchangeRate: z.object({
 		baseUrl: z.string().nonempty(),
 		apiKey: z.string().nonempty(),
+	}),
+	stripe: z.object({
+		secretKey: z.string().trim().nonempty(),
 	}),
 	rateLimit: z.object({
 		globalLimit: z.coerce.number().min(10).max(100).default(100).optional(),
@@ -150,6 +154,7 @@ export const configSchema = z.object({
 		createOrderLimit: z.coerce.number().min(3).max(5).default(3).optional(),
 		getOrdersLimit: z.coerce.number().min(20).max(100).default(100).optional(),
 		getOrderLimit: z.coerce.number().min(20).max(100).default(100).optional(),
+		createPaymentLimit: z.coerce.number().min(3).max(5).default(5).optional(),
 	}),
 });
 
@@ -165,6 +170,7 @@ export function setupConfig(): Config {
 				process.env.APPLICATION_CLIENT_ACCOUNT_VERIFICATION_PATH,
 			clientResetPasswordPath:
 				process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
+			clientOrdersPath: process.env.APPLICATION_ORDERS_PATH,
 			cookieSecret: process.env.APPLICATION_COOKIE_SECRET,
 			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
 			sessionCookieName: process.env.SESSION_COOKIE_NAME,
@@ -225,6 +231,10 @@ export function setupConfig(): Config {
 			baseUrl: process.env.EXCHANGE_RATE_BASE_URL,
 			apiKey: process.env.EXCHANGE_RATE_API_KEY,
 		},
+
+		stripe: {
+			secretKey: process.env.STRIPE_SECRET_KEY,
+		},
 		rateLimit: {
 			globalLimit: process.env.RATE_LIMIT_GLOBAL,
 			notFoundLimit: process.env.RATE_LIMIT_NOT_FOUND,
@@ -249,6 +259,7 @@ export function setupConfig(): Config {
 			createOrderLimit: process.env.RATE_LIMIT_CREATE_ORDER,
 			getOrdersLimit: process.env.RATE_LIMIT_GET_ORDERS,
 			getOrderLimit: process.env.RATE_LIMIT_GET_ORDER,
+			createPaymentLimit: process.env.RATE_LIMIT_CREATE_PAYMENT,
 		},
 	});
 

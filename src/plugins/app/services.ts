@@ -10,6 +10,7 @@ import { createProductService } from "../../services/product.service.js";
 import { createProductSkuService } from "../../services/product-sku.service.js";
 import { createPromocodeService } from "../../services/promocode.service.js";
 import { createUserService } from "../../services/user.service.js";
+import { createPaymentService } from "../../services/payment.service.js";
 
 declare module "fastify" {
 	export interface FastifyInstance {
@@ -23,6 +24,7 @@ declare module "fastify" {
 		promocodeService: ReturnType<typeof createPromocodeService>;
 		priceService: ReturnType<typeof createPriceService>;
 		orderService: ReturnType<typeof createOrderService>;
+		paymentService: ReturnType<typeof createPaymentService>;
 		cronService: ReturnType<typeof createCronService>;
 	}
 }
@@ -42,6 +44,7 @@ export default fp(
 		);
 		instance.decorate("userService", createUserService(instance));
 		instance.decorate("orderService", createOrderService(instance));
+		instance.decorate("paymentService", createPaymentService(instance));
 		instance.decorate("cronService", createCronService(instance));
 	},
 	{ dependencies: ["oauth"] },

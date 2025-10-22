@@ -172,8 +172,18 @@ describe("Order", () => {
 			});
 		});
 
+		it("Should return 401 status code when user is not authorized", async () => {
+			await withTestApp(async (testApp) => {
+				const getOrderRes = await testApp.getOrder({}, randomUUID().toString());
+
+				expect(getOrderRes.statusCode).toBe(401);
+			});
+		});
+
 		it("Should return 404 status code when order doesn't exist", async () => {
 			await withTestApp(async (testApp) => {
+				await setup(testApp);
+
 				const signInRes = await testApp.signIn({ body: user });
 				expect(signInRes.statusCode).toBe(200);
 

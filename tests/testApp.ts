@@ -82,6 +82,7 @@ export interface TestApp {
 	createOrder: typeof createOrder;
 	getOrder: typeof getOrder;
 	getOrders: typeof getOrders;
+	createPayment: typeof createPayment;
 
 	// Admin routes
 	createCategory: typeof createCategory;
@@ -408,6 +409,17 @@ async function getOrder(
 	return await this.app.inject({
 		method: "GET",
 		url: `/api/v1/order/${orderNumber}`,
+		...options,
+	});
+}
+
+async function createPayment(
+	this: TestApp,
+	options?: Omit<InjectOptions, "method" | "url">,
+) {
+	return await this.app.inject({
+		method: "POST",
+		url: `/api/v1/payment`,
 		...options,
 	});
 }
@@ -771,6 +783,7 @@ export async function buildTestApp(): Promise<TestApp> {
 		createOrder,
 		getOrders,
 		getOrder,
+		createPayment,
 
 		getCategories,
 		createCategory,

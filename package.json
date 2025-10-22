@@ -62,7 +62,7 @@
 		"@fastify/sensible": "^6.0.3",
 		"@fastify/swagger": "^9.5.1",
 		"@fastify/swagger-ui": "^5.2.3",
-		"@vkid/sdk": "^2.6.0",
+
 		"ajv": "^8.17.1",
 		"ajv-formats": "^3.0.1",
 		"close-with-grace": "^2.2.0",
@@ -75,6 +75,7 @@
 		"kysely-ctl": "^0.14.0",
 		"nodemailer": "^7.0.5",
 		"pg": "^8.16.3",
+		"stripe": "^19.1.0",
 		"toad-scheduler": "^3.1.0",
 		"ts-node": "^10.9.2",
 		"zod": "^4.0.15"
