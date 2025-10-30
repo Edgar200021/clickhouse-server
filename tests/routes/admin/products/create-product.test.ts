@@ -1,6 +1,6 @@
-import { createReadStream } from "node:fs";
-import { faker } from "@faker-js/faker";
-import type { LightMyRequestResponse } from "fastify";
+import {createReadStream} from "node:fs";
+import {faker} from "@faker-js/faker";
+import type {LightMyRequestResponse} from "fastify";
 import formAutoContent from "form-auto-content";
 import {
 	ProductDescriptionMaxLength,
@@ -9,21 +9,13 @@ import {
 	ProductShortDescriptionMaxLength,
 	SignUpPasswordMinLength,
 } from "../../../../src/const/zod.js";
-import type { Category } from "../../../../src/types/db/category.js";
-import { UserRole } from "../../../../src/types/db/db.js";
-import type { Manufacturer } from "../../../../src/types/db/manufacturer.js";
-import type { Product } from "../../../../src/types/db/product.js";
-import { buildTestApp, ImagePath, PdfPath } from "../../../testApp.js";
+import {UserRole} from "../../../../src/types/db/db.js";
+import {ImagePath, PdfPath, TestApp, withTestApp} from "../../../testApp.js";
 
 describe("Admin", () => {
-	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
-	let products: Product[];
-	let categories: Category[];
-	let manufacturers: Manufacturer[];
-
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: SignUpPasswordMinLength }),
+		password: faker.internet.password({length: SignUpPasswordMinLength}),
 	};
 
 	const productData = {
@@ -35,44 +27,45 @@ describe("Admin", () => {
 		manufacturerId: 1,
 	};
 
-	beforeEach(async () => {
-		testApp = await buildTestApp();
-
-		const [product, category, manufacture] = await Promise.all([
+	async function setup(testApp: TestApp) {
+		const [products, categories, manufacturers] = await Promise.all([
 			testApp.app.kysely.selectFrom("product").selectAll().execute(),
 			testApp.app.kysely.selectFrom("category").selectAll().execute(),
 			testApp.app.kysely.selectFrom("manufacturer").selectAll().execute(),
 		]);
 
-		products = product;
-		categories = category;
-		manufacturers = manufacture;
-	});
+		return {
+			products,
+			categories,
+			manufacturers
+		}
+	}
 
-	afterEach(async () => {
-		await testApp.app.cloudinary.api.delete_all_resources();
-		await testApp.close();
-	});
 
 	describe("Create Product", () => {
-		it("Should return 201 status code when request is successfull", async () => {
-			const createProductRes = await testApp.withSignIn(
-				{ body: user },
-				{
-					fn: testApp.createProduct,
-					args: {
-						...formAutoContent(productData),
+		it("Should return 201 status code when request is successful", async () => {
+			await withTestApp(async testApp => {
+				const createProductRes = await testApp.withSignIn(
+					{body: user},
+					{
+						fn: testApp.createProduct,
+						args: {
+							...formAutoContent(productData),
+						},
 					},
-				},
-				UserRole.Admin,
-			);
+					UserRole.Admin,
+				);
 
-			expect(createProductRes.statusCode).toBe(201);
-		});
+				expect(createProductRes.statusCode).toBe(201);
+			}, async testApp => await testApp.app.cloudinary.api.delete_all_resources())
+		})
+	});
 
-		it("Should be saved into database when request is successfull", async () => {
+	it("Should be saved into database when request is successful", async () => {
+		await withTestApp(async testApp => {
+			const {products} = await setup(testApp)
 			const createProductRes = await testApp.withSignIn(
-				{ body: user },
+				{body: user},
 				{
 					fn: testApp.createProduct,
 					args: {
@@ -97,9 +90,11 @@ describe("Admin", () => {
 			expect(dbProduct.id).greaterThan(Math.max(...products.map((p) => p.id)));
 			expect(dbProduct.assemblyInstructionFileId).not.toBeNull;
 			expect(dbProduct.assemblyInstructionFileUrl).not.toBeNull;
-		});
+		}, async testApp => await testApp.app.cloudinary.api.delete_all_resources())
+	});
 
-		it("Should return 400 status code when data is missed or invalid", async () => {
+	it("Should return 400 status code when data is missed or invalid", async () => {
+		await withTestApp(async testApp => {
 			const testCases = [
 				{
 					description: faker.string.sample(),
@@ -169,7 +164,7 @@ describe("Admin", () => {
 					manufacturerId: "string",
 				},
 				{
-					name: faker.string.alpha({ length: ProductNameMaxLength + 1 }),
+					name: faker.string.alpha({length: ProductNameMaxLength + 1}),
 					description: faker.string.sample(),
 					shortDescription: faker.string.sample(),
 					materialsAndCare: faker.string.sample(),
@@ -217,7 +212,7 @@ describe("Admin", () => {
 				},
 			];
 			const responses = await testApp.withSignIn(
-				{ body: user },
+				{body: user},
 				testCases.map((t) => ({
 					fn: testApp.createProduct,
 					args: {
@@ -230,24 +225,31 @@ describe("Admin", () => {
 			for (const response of responses as unknown as LightMyRequestResponse[]) {
 				expect(response.statusCode).toBe(400);
 			}
-		});
+		}, async testApp => await testApp.app.cloudinary.api.delete_all_resources())
+	});
 
-		it("Should return 401 status code when user is not authorized", async () => {
+	it("Should return 401 status code when user is not authorized", async () => {
+		await withTestApp(async testApp => {
 			const createProductRes = await testApp.createProduct({});
 			expect(createProductRes.statusCode).toBe(401);
-		});
+		})
+	});
 
-		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
+	it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
+		await withTestApp(async testApp => {
 			const createProductRes = await testApp.withSignIn(
-				{ body: user },
+				{body: user},
 				{
 					fn: testApp.createProduct,
 				},
 			);
 			expect(createProductRes.statusCode).toBe(403);
-		});
+		})
+	});
 
-		it("Should return 404 status code when category or manufacturer is not found", async () => {
+	it("Should return 404 status code when category or manufacturer is not found", async () => {
+		await withTestApp(async testApp => {
+			const {categories, manufacturers} = await setup(testApp)
 			const testCases = [
 				{
 					name: faker.string.sample(),
@@ -268,7 +270,7 @@ describe("Admin", () => {
 			];
 
 			const responses = await testApp.withSignIn(
-				{ body: user },
+				{body: user},
 				testCases.map((t) => ({
 					fn: testApp.createProduct,
 					args: {
@@ -281,6 +283,6 @@ describe("Admin", () => {
 			for (const response of responses as unknown as LightMyRequestResponse[]) {
 				expect(response.statusCode).toBe(404);
 			}
-		});
+		})
 	});
 });

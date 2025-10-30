@@ -5,8 +5,8 @@ import {
 	CreateOrderHomeMaxLength,
 	CreateOrderNameMaxLength,
 	CreateOrderStreetMaxLength,
-} from "../../const/zod.js";
-import { Currency } from "../../types/db/db.js";
+} from "@/const/zod.js";
+import { Currency } from "@/types/db/db.js";
 import { OrderParamSchema } from "./order-param.schema.js";
 
 const AddressSchema = z.object({

@@ -3,7 +3,7 @@ import {
 	CategoryImageMaxSize,
 	CategoryPathMaxLength,
 	CategoryPredefinedPathMaxLength,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 import { CategorySchema } from "./category.schema.js";
 
 export const UpdateCategoryRequestSchema = z.object({

@@ -1,5 +1,5 @@
 import z from "zod";
-import { CartItemMaxQuantityPerProduct } from "../../const/zod.js";
+import { CartItemMaxQuantityPerProduct } from "@/const/zod.js";
 
 import { ProductSkuParamSchema } from "../product-sku/product-sku-param.schema.js";
 

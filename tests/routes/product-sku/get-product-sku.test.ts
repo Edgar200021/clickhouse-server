@@ -1,7 +1,6 @@
-import type { LightMyRequestResponse } from "fastify";
-import { describe, expect, it } from "vitest";
-import type { Product, ProductSku } from "../../../src/types/db/product.js";
-import { buildTestApp, type TestApp, withTestApp } from "../../testApp.js";
+import type {LightMyRequestResponse} from "fastify";
+import {describe, expect, it} from "vitest";
+import {type TestApp, withTestApp} from "../../testApp.js";
 
 describe("Product Sku", () => {
 	const setup = async (testApp: TestApp) => {
@@ -29,7 +28,7 @@ describe("Product Sku", () => {
 	};
 
 	describe("Get Product Sku", () => {
-		it("Should return 200 status code when request is successfull", async () => {
+		it("Should return 200 status code when request is successful", async () => {
 			await withTestApp(async (testApp) => {
 				const productsSkus = await setup(testApp);
 				const getProductSkuResponse = await testApp.getProductSku(

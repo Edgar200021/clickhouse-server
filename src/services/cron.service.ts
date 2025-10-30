@@ -1,13 +1,12 @@
-import type { FastifyInstance } from "fastify/types/instance.js";
+import type {FastifyInstance} from "fastify/types/instance.js";
 
-import { AsyncTask, SimpleIntervalJob } from "toad-scheduler";
+import {AsyncTask, SimpleIntervalJob} from "toad-scheduler";
+import fp from "fastify-plugin";
 
-export function createCronService({
-	userService,
-	orderService,
-	scheduler,
-	log,
-}: FastifyInstance) {
+
+export default fp(async (fastify: FastifyInstance) => {
+	const {userService, log, scheduler, orderService} = fastify
+
 	const deleteNotVerifiedUsersTask = new AsyncTask(
 		"Delete not verified users task",
 		() => userService.deleteNotVerifiedUsers(),
@@ -26,15 +25,20 @@ export function createCronService({
 
 	scheduler.addSimpleIntervalJob(
 		new SimpleIntervalJob(
-			{ hours: 1, runImmediately: true },
+			{hours: 1, runImmediately: true},
 			deleteNotVerifiedUsersTask,
 		),
 	);
 
 	scheduler.addSimpleIntervalJob(
 		new SimpleIntervalJob(
-			{ minutes: 1, runImmediately: true },
+			{minutes: 1, runImmediately: true},
 			cancelExpiredOrders,
 		),
 	);
-}
+
+
+}, {
+	name: "cronService",
+	dependencies: ["orderService", "userService"]
+})

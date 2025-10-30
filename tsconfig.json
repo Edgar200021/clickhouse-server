@@ -1,7 +1,11 @@
 {
 	"extends": "@tsconfig/node24/tsconfig.json",
 	"compilerOptions": {
-		"outDir": "dist"
+		"outDir": "dist",
+		"baseUrl": "src",
+		"paths": {
+			"@/*": ["*"]
+		}
 	},
 	"include": ["src/**/*", "scripts", "seeds"],
 	"exclude": ["node_modules", "dist", "migrations", "tests"]

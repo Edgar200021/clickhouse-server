@@ -1,16 +1,12 @@
-import { randomUUID } from "node:crypto";
-import { type Insertable, type Kysely, sql } from "kysely";
-import type {
-	DB,
-	ProductSkuImages,
-	ProductSkuPackage,
-} from "../src/types/db/db.js";
+import {randomUUID} from "node:crypto";
+import {type Insertable, type Kysely, sql} from "kysely";
+import type {DB, ProductSkuImages, ProductSkuPackage,} from "../src/types/db/db.js";
 
 export async function seed(db: Kysely<DB>): Promise<void> {
 	const productIds = await db.selectFrom("product").select(["id"]).execute();
 	const colors = ["белый", "черный", "коричневый", "серый", "бежевый"];
 
-	for (const [index, { id }] of productIds.entries()) {
+	for (const [index, {id}] of productIds.entries()) {
 		for (const color of colors) {
 			const productSkuIds = await db
 				.insertInto("productSku")
@@ -19,18 +15,24 @@ export async function seed(db: Kysely<DB>): Promise<void> {
 					price: 10000,
 					quantity: index % 2 === 0 ? 20 : 0,
 					sku: randomUUID(),
-					...(index % 2 === 0 ? { salePrice: 5000 } : {}),
+					...(index % 2 === 0 ? {salePrice: 5000} : {}),
 					attributes: sql`
-      hstore(
+              hstore
+              (
         array['color','length','height','width'],
-        array[${color}, '20', '10', '5']
-      )
-    `,
+        array[
+              ${color},
+              '20',
+              '10',
+              '5'
+              ]
+              )
+					`,
 				})
 				.returning("id")
 				.execute();
 
-			for (const { id } of productSkuIds) {
+			for (const {id} of productSkuIds) {
 				const packageSizes: Insertable<ProductSkuPackage>[] = [
 					{
 						productSkuId: id,

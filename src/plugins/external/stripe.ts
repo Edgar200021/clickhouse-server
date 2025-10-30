@@ -7,7 +7,7 @@ import {
 import type { FastifyInstance } from "fastify/types/instance.js";
 import fp from "fastify-plugin";
 import Stripe from "stripe";
-import { PaypalTokenKey } from "../../const/redis.js";
+import { PaypalTokenKey } from "@/const/redis.js";
 
 declare module "fastify" {
 	export interface FastifyInstance {

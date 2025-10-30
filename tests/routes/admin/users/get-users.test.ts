@@ -1,234 +1,234 @@
-import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import {faker} from "@faker-js/faker";
+import {describe, expect, it} from "vitest";
 import type z from "zod";
-import {
-	GetUsersMaxLimit,
-	SignUpPasswordMinLength,
-} from "../../../../src/const/zod.js";
-import type { AdminUserSchema } from "../../../../src/schemas/user/user.schema.js";
-import { UserRole } from "../../../../src/types/db/db.js";
-import type { User } from "../../../../src/types/db/user.js";
-import { buildTestApp } from "../../../testApp.js";
+import {GetUsersMaxLimit, SignUpPasswordMinLength,} from "../../../../src/const/zod.js";
+import type {AdminUserSchema} from "../../../../src/schemas/user/user.schema.js";
+import {UserRole} from "../../../../src/types/db/db.js";
+import {type TestApp, withTestApp} from "../../../testApp.js";
 
 describe("Admin", () => {
-	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
-	let dbUsers: User[] = [];
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: SignUpPasswordMinLength }),
+		password: faker.internet.password({length: SignUpPasswordMinLength}),
 	};
 
-	beforeEach(async () => {
-		testApp = await buildTestApp();
-
-		const users = await testApp.app.kysely
-			.selectFrom("users")
-			.selectAll()
-			.execute();
-
-		dbUsers = users;
-	});
-
-	afterEach(async () => {
-		await testApp.close();
-	});
+	async function setup(testApp: TestApp) {
+		return await testApp.app.kysely.selectFrom("users").selectAll().execute();
+	}
 
 	describe("Get Users", () => {
-		it("Should return 200 status code when request is successfull", async () => {
-			const getUsersRes = await testApp.withSignIn(
-				{ body: user },
-				{
-					fn: testApp.getUsers,
-					args: {
-						query: {
-							limit:
-								dbUsers.length <= GetUsersMaxLimit
-									? dbUsers.length
-									: GetUsersMaxLimit,
-						} as unknown as Record<string, string>,
+		it("Should return 200 status code when request is successful", async () => {
+			await withTestApp(async (testApp) => {
+				const dbUsers = await setup(testApp);
+				const getUsersRes = await testApp.withSignIn(
+					{body: user},
+					{
+						fn: testApp.getUsers,
+						args: {
+							query: {
+								limit:
+									dbUsers.length <= GetUsersMaxLimit
+										? dbUsers.length
+										: GetUsersMaxLimit,
+							} as unknown as Record<string, string>,
+						},
 					},
-				},
-				UserRole.Admin,
-			);
-			const {
-				data: { users },
-			} = getUsersRes.json<{
-				status: "success";
-				data: { pageCount: number; users: z.Infer<typeof AdminUserSchema>[] };
-			}>();
+					UserRole.Admin,
+				);
+				const {
+					data: {users},
+				} = getUsersRes.json<{
+					status: "success";
+					data: { pageCount: number; users: z.Infer<typeof AdminUserSchema>[] };
+				}>();
 
-			expect(getUsersRes.statusCode).toBe(200);
-			expect(users).toHaveLength(
-				dbUsers.filter((u) => u.role !== UserRole.Admin).length,
-			);
+				expect(getUsersRes.statusCode).toBe(200);
+				expect(users).toHaveLength(
+					dbUsers.filter((u) => u.role !== UserRole.Admin).length,
+				);
+			});
 		});
 
 		it("Should filter users by isBanned and isVerified", async () => {
-			const queries: (
-				| { isBanned: "true"; limit: number }
-				| { isVerified: "true"; limit: number }
-			)[] = [
-				{
-					isBanned: "true",
-					limit:
-						dbUsers.length <= GetUsersMaxLimit
-							? dbUsers.length
-							: GetUsersMaxLimit,
-				},
-				{
-					isVerified: "true",
-					limit:
-						dbUsers.length <= GetUsersMaxLimit
-							? dbUsers.length
-							: GetUsersMaxLimit,
-				},
-			];
-
-			for (const query of queries) {
-				const res = await testApp.withSignIn(
+			await withTestApp(async (testApp) => {
+				const dbUsers = await setup(testApp);
+				const queries: (
+					| { isBanned: "true"; limit: number }
+					| { isVerified: "true"; limit: number }
+					)[] = [
 					{
-						body: {
-							email: faker.internet.email(),
-							password: faker.internet.password({
-								length: SignUpPasswordMinLength,
-							}),
+						isBanned: "true",
+						limit:
+							dbUsers.length <= GetUsersMaxLimit
+								? dbUsers.length
+								: GetUsersMaxLimit,
+					},
+					{
+						isVerified: "true",
+						limit:
+							dbUsers.length <= GetUsersMaxLimit
+								? dbUsers.length
+								: GetUsersMaxLimit,
+					},
+				];
+
+				for (const query of queries) {
+					const res = await testApp.withSignIn(
+						{
+							body: {
+								email: faker.internet.email(),
+								password: faker.internet.password({
+									length: SignUpPasswordMinLength,
+								}),
+							},
 						},
-					},
-					{
-						fn: testApp.getUsers,
-						args: { query } as unknown as Record<string, string>,
-					},
-					UserRole.Admin,
-				);
+						{
+							fn: testApp.getUsers,
+							args: {query} as unknown as Record<string, string>,
+						},
+						UserRole.Admin,
+					);
 
-				expect(res.statusCode).toBe(200);
+					expect(res.statusCode).toBe(200);
 
-				const {
-					data: { users },
-				} = res.json<{
-					status: "success";
-					data: {
-						pageCount: number;
-						users: z.Infer<typeof AdminUserSchema>[];
-					};
-				}>();
+					const {
+						data: {users},
+					} = res.json<{
+						status: "success";
+						data: {
+							pageCount: number;
+							users: z.Infer<typeof AdminUserSchema>[];
+						};
+					}>();
 
-				expect(users.length).toBe(
-					dbUsers.filter(
-						(u) =>
-							(Object.hasOwn(query, "isBanned") ? u.isBanned : u.isVerified) &&
-							u.role !== UserRole.Admin,
-					).length,
-				);
-				expect(
-					users.every((u) =>
-						Object.hasOwn(query, "isBanned") ? u.isBanned : u.isVerified,
-					),
-				).toBe(true);
-			}
+					expect(users.length).toBe(
+						dbUsers.filter(
+							(u) =>
+								(Object.hasOwn(query, "isBanned")
+									? u.isBanned
+									: u.isVerified) && u.role !== UserRole.Admin,
+						).length,
+					);
+					expect(
+						users.every((u) =>
+							Object.hasOwn(query, "isBanned") ? u.isBanned : u.isVerified,
+						),
+					).toBe(true);
+				}
+			});
 		});
 
 		it("Should filter users by search (case-insensitive, substring)", async () => {
-			const firstNonAdmin = dbUsers.find((u) => u.role !== UserRole.Admin);
-			if (!firstNonAdmin) throw new Error("No non-admin user found for test");
+			await withTestApp(async (testApp) => {
+				const dbUsers = await setup(testApp);
+				const firstNonAdmin = dbUsers.find((u) => u.role !== UserRole.Admin);
+				if (!firstNonAdmin) throw new Error("No non-admin user found for test");
 
-			const email = firstNonAdmin.email;
-			const partLower = email.slice(0, 4);
-			const partUpper = partLower.toUpperCase();
+				const email = firstNonAdmin.email;
+				const partLower = email.slice(0, 4);
+				const partUpper = partLower.toUpperCase();
 
-			const queries = [
-				{ search: partLower, expected: true },
-				{ search: partUpper, expected: true },
-				{ search: "no-such-email", expected: false },
-			];
+				const queries = [
+					{search: partLower, expected: true},
+					{search: partUpper, expected: true},
+					{search: "no-such-email", expected: false},
+				];
 
-			for (const { search, expected } of queries) {
-				const res = await testApp.withSignIn(
-					{
-						body: {
-							email: faker.internet.email(),
-							password: faker.internet.password({
-								length: SignUpPasswordMinLength,
-							}),
+				for (const {search, expected} of queries) {
+					const res = await testApp.withSignIn(
+						{
+							body: {
+								email: faker.internet.email(),
+								password: faker.internet.password({
+									length: SignUpPasswordMinLength,
+								}),
+							},
 						},
-					},
-					{ fn: testApp.getUsers, args: { query: { search } } },
-					UserRole.Admin,
-				);
-
-				expect(res.statusCode).toBe(200);
-				const {
-					data: { users },
-				} = res.json<{
-					status: "success";
-					data: {
-						pageCount: number;
-						users: z.Infer<typeof AdminUserSchema>[];
-					};
-				}>();
-
-				if (expected) {
-					expect(users.length).toBeGreaterThan(0);
-					expect(
-						users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
-					).toBe(true);
-				} else {
-					expect(users.some((u) => u.email === email.toLowerCase())).toBe(
-						false,
+						{fn: testApp.getUsers, args: {query: {search}}},
+						UserRole.Admin,
 					);
+
+					expect(res.statusCode).toBe(200);
+					const {
+						data: {users},
+					} = res.json<{
+						status: "success";
+						data: {
+							pageCount: number;
+							users: z.Infer<typeof AdminUserSchema>[];
+						};
+					}>();
+
+					if (expected) {
+						expect(users.length).toBeGreaterThan(0);
+						expect(
+							users.some((u) => u.email.toLowerCase() === email.toLowerCase()),
+						).toBe(true);
+					} else {
+						expect(users.some((u) => u.email === email.toLowerCase())).toBe(
+							false,
+						);
+					}
 				}
-			}
+			});
 		});
 
 		it("Should return 400 status code when filters are invalid", async () => {
-			const testCases = [
-				{
-					limit: 0,
-				},
-				{
-					page: 0,
-				},
-				{
-					limit: -1,
-				},
-				{
-					page: -1,
-				},
-				{
-					limit: GetUsersMaxLimit + 1,
-				},
-				{
-					search: "",
-				},
-			];
+			await withTestApp(async (testApp) => {
+				const testCases = [
+					{
+						limit: 0,
+					},
+					{
+						page: 0,
+					},
+					{
+						limit: -1,
+					},
+					{
+						page: -1,
+					},
+					{
+						limit: GetUsersMaxLimit + 1,
+					},
+					{
+						search: "",
+					},
+				];
 
-			const responses = await testApp.withSignIn(
-				{ body: user },
-				testCases.map((t) => ({
-					fn: testApp.getUsers,
-					args: { query: t as unknown as Record<string, string> },
-				})),
-				UserRole.Admin,
-			);
+				const responses = await testApp.withSignIn(
+					{body: user},
+					testCases.map((t) => ({
+						fn: testApp.getUsers,
+						args: {query: t as unknown as Record<string, string>},
+					})),
+					UserRole.Admin,
+				);
 
-			for (const response of responses as unknown as LightMyRequestResponse[]) {
-				expect(response.statusCode).toBe(400);
-			}
+				for (const response of responses as unknown as LightMyRequestResponse[]) {
+					expect(response.statusCode).toBe(400);
+				}
+			});
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const getManufacturerRes = await testApp.getUsers({});
-			expect(getManufacturerRes.statusCode).toBe(401);
+			await withTestApp(async (testApp) => {
+				const getUsersRes = await testApp.getUsers({});
+				expect(getUsersRes.statusCode).toBe(401);
+			});
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const getManufacturerRes = await testApp.withSignIn(
-				{ body: user },
-				{
-					fn: testApp.getUsers,
-				},
-			);
-			expect(getManufacturerRes.statusCode).toBe(403);
+			await withTestApp(async (testApp) => {
+				const getUsersRes = await testApp.withSignIn(
+					{body: user},
+					{
+						fn: testApp.getUsers,
+					},
+				);
+
+				expect(getUsersRes.statusCode).toBe(403);
+			});
 		});
 	});
 });

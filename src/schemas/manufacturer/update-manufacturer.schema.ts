@@ -1,5 +1,5 @@
 import z from "zod";
-import { ManufacturerNameMaxLength } from "../../const/zod.js";
+import { ManufacturerNameMaxLength } from "@/const/zod.js";
 import { ManufacturerSchema } from "./manufacturer.schema.js";
 
 export const UpdateManufacturerRequestSchema = z.object({

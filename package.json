@@ -34,7 +34,6 @@
 	"description": "",
 	"devDependencies": {
 		"@faker-js/faker": "^9.9.0",
-		"@testcontainers/postgresql": "^11.7.1",
 		"@testcontainers/redis": "^11.7.1",
 		"@tsconfig/node24": "^24.0.1",
 		"@types/node": "^24.0.13",
@@ -62,7 +61,6 @@
 		"@fastify/sensible": "^6.0.3",
 		"@fastify/swagger": "^9.5.1",
 		"@fastify/swagger-ui": "^5.2.3",
-
 		"ajv": "^8.17.1",
 		"ajv-formats": "^3.0.1",
 		"close-with-grace": "^2.2.0",

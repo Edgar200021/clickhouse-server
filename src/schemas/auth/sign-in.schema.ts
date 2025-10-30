@@ -2,7 +2,7 @@ import z from "zod";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 import { UserSchema } from "../user/user.schema.js";
 
 export const SignInRequestSchema = z.object({

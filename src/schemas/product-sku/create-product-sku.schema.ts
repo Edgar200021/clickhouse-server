@@ -5,8 +5,8 @@ import {
 	ProductSkuImagesMinLength,
 	ProductSkuPackagesMaxLength,
 	ProductSkuPackagesMinLength,
-} from "../../const/zod.js";
-import { Currency } from "../../types/db/db.js";
+} from "@/const/zod.js";
+import { Currency } from "@/types/db/db.js";
 import { ProductParamSchema } from "../product/product-param.schema.js";
 import {
 	ProductSkuAdminSchema,

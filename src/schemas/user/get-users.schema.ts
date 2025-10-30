@@ -1,5 +1,5 @@
 import z from "zod";
-import { GetUsersDefaultLimit, GetUsersMaxLimit } from "../../const/zod.js";
+import { GetUsersDefaultLimit, GetUsersMaxLimit } from "@/const/zod.js";
 import { WithPageCountSchema } from "../base.schema.js";
 import { AdminUserSchema } from "./user.schema.js";
 

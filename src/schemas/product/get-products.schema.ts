@@ -2,7 +2,7 @@ import z from "zod";
 import {
 	GetProductsDefaultLimit,
 	GetProductsMaxLimit,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 import { WithPageCountSchema } from "../base.schema.js";
 import { ProductAdminSchema } from "./product.schema.js";
 

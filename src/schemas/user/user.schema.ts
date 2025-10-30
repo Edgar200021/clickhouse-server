@@ -1,5 +1,5 @@
 import z from "zod";
-import { UserRole } from "../../types/db/db.js";
+import { UserRole } from "@/types/db/db.js";
 
 export const UserSchema = z.object({
 	id: z.uuid(),

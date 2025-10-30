@@ -1,6 +1,6 @@
-import { createReadStream } from "node:fs";
-import { faker } from "@faker-js/faker";
-import type { LightMyRequestResponse } from "fastify";
+import {createReadStream} from "node:fs";
+import {faker} from "@faker-js/faker";
+import type {LightMyRequestResponse} from "fastify";
 import formAutoContent from "form-auto-content";
 import {
 	ProductDescriptionMaxLength,
@@ -9,189 +9,196 @@ import {
 	ProductShortDescriptionMaxLength,
 	SignUpPasswordMinLength,
 } from "../../../../src/const/zod.js";
-import type { Category } from "../../../../src/types/db/category.js";
-import { UserRole } from "../../../../src/types/db/db.js";
-import type { Manufacturer } from "../../../../src/types/db/manufacturer.js";
-import type { Product } from "../../../../src/types/db/product.js";
-import { buildTestApp, ImagePath, type WithSignIn } from "../../../testApp.js";
+import {UserRole} from "../../../../src/types/db/db.js";
+import {ImagePath, TestApp, type WithSignIn, withTestApp} from "../../../testApp.js";
 
 describe("Admin", () => {
-	let testApp: Awaited<ReturnType<typeof buildTestApp>>;
-	let products: Product[];
-	let categories: Category[];
-	let manufacturers: Manufacturer[];
-
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: SignUpPasswordMinLength }),
+		password: faker.internet.password({length: SignUpPasswordMinLength}),
 	};
 
-	beforeEach(async () => {
-		testApp = await buildTestApp();
-
-		const [product, category, manufacture] = await Promise.all([
+	async function setup(testApp: TestApp) {
+		const [products, categories, manufacturers] = await Promise.all([
 			testApp.app.kysely.selectFrom("product").selectAll().execute(),
 			testApp.app.kysely.selectFrom("category").selectAll().execute(),
 			testApp.app.kysely.selectFrom("manufacturer").selectAll().execute(),
 		]);
 
-		products = product;
-		categories = category;
-		manufacturers = manufacture;
-	});
+		return {
+			products,
+			categories,
+			manufacturers
+		}
+	}
 
-	afterEach(async () => {
-		await testApp.app.cloudinary.api.delete_all_resources();
-		await testApp.close();
-	});
 
 	describe("Update Product", () => {
-		it("Should return 200 status code when request is successfull", async () => {
-			const updateProductRes = await testApp.withSignIn<
-				Parameters<typeof testApp.updateProduct>["1"][],
-				WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>
-			>(
-				{ body: user },
-				{
-					fn: testApp.updateProduct,
-					args: {
-						...formAutoContent({ name: faker.string.sample() }),
+		it("Should return 200 status code when request is successful", async () => {
+			await withTestApp(async testApp => {
+				const {products} = await setup(testApp)
+				const updateProductRes = await testApp.withSignIn<
+					Parameters<typeof testApp.updateProduct>["1"][],
+					WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>
+				>(
+					{body: user},
+					{
+						fn: testApp.updateProduct,
+						args: {
+							...formAutoContent({name: faker.string.sample()}),
+						},
+						additionalArg: [products[0].id],
 					},
-					additionalArg: [products[0].id],
-				},
-				UserRole.Admin,
-			);
+					UserRole.Admin,
+				);
 
-			expect(updateProductRes.statusCode).toBe(200);
+				expect(updateProductRes.statusCode).toBe(200);
+			})
 		});
 
-		it("Should change product in database when request is successfull", async () => {
-			await testApp.withSignIn<
-				Parameters<typeof testApp.updateProduct>["1"][],
-				WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>
-			>(
-				{ body: user },
-				{
-					fn: testApp.updateProduct,
-					args: {
-						...formAutoContent({ name: "new name" }),
+
+		it("Should change product in database when request is successful", async () => {
+			await withTestApp(async testApp => {
+				const {products} = await setup(testApp)
+				await testApp.withSignIn<
+					Parameters<typeof testApp.updateProduct>["1"][],
+					WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>
+				>(
+					{body: user},
+					{
+						fn: testApp.updateProduct,
+						args: {
+							...formAutoContent({name: "new name"}),
+						},
+						additionalArg: [products[0].id],
 					},
-					additionalArg: [products[0].id],
-				},
-				UserRole.Admin,
-			);
+					UserRole.Admin,
+				);
 
-			const dbProduct = await testApp.app.kysely
-				.selectFrom("product")
-				.selectAll()
-				.where("id", "=", products[0].id)
-				.executeTakeFirstOrThrow();
+				const dbProduct = await testApp.app.kysely
+					.selectFrom("product")
+					.selectAll()
+					.where("id", "=", products[0].id)
+					.executeTakeFirstOrThrow();
 
-			expect(dbProduct.name !== products[0].name);
-			expect(dbProduct.name === "new name");
+				expect(dbProduct.name !== products[0].name);
+				expect(dbProduct.name === "new name");
+			})
 		});
 
 		it("Should return 400 status code when data is invalid", async () => {
-			const testCases = [
-				{},
-				{
-					categoryId: "string",
-				},
-				{
-					manufacturerId: "string",
-				},
-				{
-					assemblyInstruction: createReadStream(ImagePath),
-				},
-				{
-					assemblyInstruction: "Non file",
-				},
-				{
-					name: faker.string.alpha({ length: ProductNameMaxLength + 1 }),
-				},
-				{
-					description: faker.string.alpha({
-						length: ProductDescriptionMaxLength + 1,
-					}),
-				},
-				{
-					shortDescription: faker.string.alpha({
-						length: ProductShortDescriptionMaxLength + 1,
-					}),
-				},
-				{
-					materialsAndCare: faker.string.alpha({
-						length: ProductMaterialAndCareMaxLength + 1,
-					}),
-				},
-			];
-
-			const responses = await testApp.withSignIn<
-				Parameters<typeof testApp.updateProduct>["1"][],
-				WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>[]
-			>(
-				{ body: user },
-				testCases.map((t) => ({
-					fn: testApp.updateProduct,
-					args: {
-						...formAutoContent(t),
+			await withTestApp(async testApp => {
+				const {products} = await setup(testApp)
+				const testCases = [
+					{},
+					{
+						categoryId: "string",
 					},
-					additionalArg: [products[0].id],
-				})),
-				UserRole.Admin,
-			);
+					{
+						manufacturerId: "string",
+					},
+					{
+						assemblyInstruction: createReadStream(ImagePath),
+					},
+					{
+						assemblyInstruction: "Non file",
+					},
+					{
+						name: faker.string.alpha({length: ProductNameMaxLength + 1}),
+					},
+					{
+						description: faker.string.alpha({
+							length: ProductDescriptionMaxLength + 1,
+						}),
+					},
+					{
+						shortDescription: faker.string.alpha({
+							length: ProductShortDescriptionMaxLength + 1,
+						}),
+					},
+					{
+						materialsAndCare: faker.string.alpha({
+							length: ProductMaterialAndCareMaxLength + 1,
+						}),
+					},
+				];
 
-			for (const response of responses as unknown as LightMyRequestResponse[]) {
-				expect(response.statusCode).toBe(400);
-			}
+				const responses = await testApp.withSignIn<
+					Parameters<typeof testApp.updateProduct>["1"][],
+					WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>[]
+				>(
+					{body: user},
+					testCases.map((t) => ({
+						fn: testApp.updateProduct,
+						args: {
+							...formAutoContent(t),
+						},
+						additionalArg: [products[0].id],
+					})),
+					UserRole.Admin,
+				);
+
+				for (const response of responses as unknown as LightMyRequestResponse[]) {
+					expect(response.statusCode).toBe(400);
+				}
+			}, async testApp => await testApp.app.cloudinary.api.delete_all_resources())
 		});
 
 		it("Should return 401 status code when user is not authorized", async () => {
-			const updateProductRes = await testApp.updateProduct({}, products[0].id);
-			expect(updateProductRes.statusCode).toBe(401);
+			await withTestApp(async testApp => {
+				const {products} = await setup(testApp)
+				const updateProductRes = await testApp.updateProduct({}, products[0].id);
+				expect(updateProductRes.statusCode).toBe(401);
+			})
 		});
 
 		it(`Should return 403 status code when user role is not ${UserRole.Admin}`, async () => {
-			const updateProductRes = await testApp.withSignIn<
-				Parameters<typeof testApp.updateCategory>["1"][],
-				WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
-			>(
-				{ body: user },
-				{
-					fn: testApp.updateProduct,
-					additionalArg: [products[0].id],
-				},
-			);
-			expect(updateProductRes.statusCode).toBe(403);
+			await withTestApp(async testApp => {
+				const {products} = await setup(testApp)
+				const updateProductRes = await testApp.withSignIn<
+					Parameters<typeof testApp.updateCategory>["1"][],
+					WithSignIn<Parameters<typeof testApp.updateCategory>["1"][]>
+				>(
+					{body: user},
+					{
+						fn: testApp.updateProduct,
+						additionalArg: [products[0].id],
+					},
+				);
+				expect(updateProductRes.statusCode).toBe(403);
+			})
 		});
 
 		it("Should return 404 status code when category or manufacturer is not found", async () => {
-			const testCases = [
-				{
-					categoryId: Math.max(...categories.map((c) => c.id)) + 1,
-				},
-				{
-					manufacturerId: Math.max(...manufacturers.map((m) => m.id)) + 1,
-				},
-			];
-
-			const responses = await testApp.withSignIn<
-				Parameters<typeof testApp.updateProduct>["1"][],
-				WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>[]
-			>(
-				{ body: user },
-				testCases.map((t) => ({
-					fn: testApp.updateProduct,
-					args: {
-						...formAutoContent(t),
+			await withTestApp(async testApp => {
+				const {categories, manufacturers} = await setup(testApp)
+				const testCases = [
+					{
+						categoryId: Math.max(...categories.map((c) => c.id)) + 1,
 					},
-				})),
-				UserRole.Admin,
-			);
+					{
+						manufacturerId: Math.max(...manufacturers.map((m) => m.id)) + 1,
+					},
+				];
 
-			for (const response of responses as unknown as LightMyRequestResponse[]) {
-				expect(response.statusCode).toBe(404);
-			}
+				const responses = await testApp.withSignIn<
+					Parameters<typeof testApp.updateProduct>["1"][],
+					WithSignIn<Parameters<typeof testApp.updateProduct>["1"][]>[]
+				>(
+					{body: user},
+					testCases.map((t) => ({
+						fn: testApp.updateProduct,
+						args: {
+							...formAutoContent(t),
+						},
+					})),
+					UserRole.Admin,
+				);
+
+				for (const response of responses as unknown as LightMyRequestResponse[]) {
+					expect(response.statusCode).toBe(404);
+				}
+			})
 		});
 	});
 });

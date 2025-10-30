@@ -1,12 +1,15 @@
 import z from "zod";
-import { Currency, OrderStatus, PromocodeType } from "../../types/db/db.js";
+import { Currency, OrderStatus, PromocodeType } from "@/types/db/db.js";
 import { GenericSchema } from "../base.schema.js";
 
-export const OrderSchema = GenericSchema(
+export const AdminOrderSchema = GenericSchema(
 	z.object({
+		id: z.number(),
+		createdAt: z.iso.datetime(),
+		updatedAt: z.iso.datetime(),
+		userId: z.string(),
 		number: z.string(),
 		name: z.string(),
-		createdAt: z.iso.datetime(),
 		email: z.email(),
 		currency: z.enum(Currency),
 		total: z.number(),
@@ -28,6 +31,7 @@ export const OrderSchema = GenericSchema(
 	"promocode",
 	z
 		.object({
+			id: z.number(),
 			discountValue: z.string(),
 			type: z.enum(PromocodeType),
 			code: z.string(),
@@ -35,7 +39,19 @@ export const OrderSchema = GenericSchema(
 		.nullable(),
 );
 
-export const SpecificOrderSchema = GenericSchema(
+export const OrderSchema = AdminOrderSchema.omit({
+	id: true,
+	updatedAt: true,
+	userId: true,
+}).extend({
+	promocode: AdminOrderSchema.shape.promocode.nullable().transform((promo) => {
+		if (!promo) return null;
+		const { id, ...rest } = promo;
+		return rest;
+	}),
+});
+
+export const SpecificAdminOrderSchema = GenericSchema(
 	z.object({
 		number: z.string(),
 		name: z.string(),
@@ -60,11 +76,11 @@ export const SpecificOrderSchema = GenericSchema(
 				code: z.string(),
 			})
 			.nullable(),
-		paymentTimeoutInMinutes: z.number(),
 	}),
 	"orderItems",
 	z.array(
 		z.object({
+			productSkuId: z.number(),
 			name: z.string(),
 			image: z.string(),
 			price: z.number(),
@@ -72,3 +88,17 @@ export const SpecificOrderSchema = GenericSchema(
 		}),
 	),
 );
+
+export const SpecificOrderSchema = SpecificAdminOrderSchema.omit({
+	orderItems: true,
+}).extend({
+	paymentTimeoutInMinutes: z.number(),
+	orderItems: z.array(
+		z.object({
+			name: z.string(),
+			image: z.string(),
+			price: z.number(),
+			quantity: z.number(),
+		}),
+	),
+});

@@ -1,2 +1,2 @@
 export const OAauthSessionPrefix = "oauth:";
-export const OAuthRedirectPathSeperator = "|";
+export const OAuthRedirectPathSeparator = "|";

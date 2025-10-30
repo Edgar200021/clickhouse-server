@@ -1,12 +1,8 @@
 import z from "zod";
-import {
-	GetProductsSkusDefaultLimit,
-	GetProductsSkusMaxLimit,
-} from "../../const/zod.js";
-import { Currency } from "../../types/db/db.js";
-import { GenericSchema, WithPageCountSchema } from "../base.schema.js";
-import { ProductAdminSchema } from "../product/product.schema.js";
-import { ProductSkuAdminSchema } from "./product-sku.schema.js";
+import {GetProductsSkusDefaultLimit, GetProductsSkusMaxLimit,} from "@/const/zod.js";
+import {GenericSchema, WithPageCountSchema} from "../base.schema.js";
+import {ProductAdminSchema} from "../product/product.schema.js";
+import {ProductSkuAdminSchema} from "./product-sku.schema.js";
 
 export const GetProductsSkusAdminRequestQuerySchema = z
 	.object({
@@ -34,6 +30,14 @@ export const GetProductsSkusAdminRequestQuerySchema = z
 		withDiscount: z
 			.enum(["true", "false"])
 			.transform((val) => val === "true")
+			.optional(),
+		sort: z
+			.literal([
+				"priceASC",
+				"priceDESC",
+				"alphabetASC",
+				"alphabetDESC",
+			])
 			.optional(),
 	})
 	.refine((schema) => {

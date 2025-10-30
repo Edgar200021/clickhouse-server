@@ -1,5 +1,5 @@
 import z from "zod";
-import { PromocodeType } from "../../types/db/db.js";
+import { PromocodeType } from "@/types/db/db.js";
 
 export const PromocodeAdminSchema = z.object({
 	id: z.number().positive(),

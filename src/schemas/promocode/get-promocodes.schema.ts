@@ -2,7 +2,7 @@ import z from "zod";
 import {
 	GetPromocodesDefaultLimit,
 	GetPromocodesMaxLimit,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 import { WithPageCountSchema } from "../base.schema.js";
 import { PromocodeAdminSchema } from "./promocode.schema.js";
 

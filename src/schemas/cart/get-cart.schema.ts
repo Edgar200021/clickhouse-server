@@ -1,5 +1,5 @@
 import z from "zod";
-import { Currency } from "./../../types/db/db.js";
+import { Currency } from "@/types/db/db.js";
 import { GenericSchema } from "../base.schema.js";
 import { ProductSchema } from "../product/product.schema.js";
 import { ProductSkuSchema } from "../product-sku/product-sku.schema.js";

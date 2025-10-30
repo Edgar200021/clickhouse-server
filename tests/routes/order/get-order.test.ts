@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
-import { faker } from "@faker-js/faker";
-import type { LightMyRequestResponse } from "fastify";
-import { describe, expect, it } from "vitest";
+import {randomUUID} from "node:crypto";
+import {faker} from "@faker-js/faker";
+import type {LightMyRequestResponse} from "fastify";
+import {describe, expect, it} from "vitest";
 import {
 	CreateOrderApartmentMaxLength,
 	CreateOrderCityMaxLength,
@@ -10,34 +10,34 @@ import {
 	CreateOrderStreetMaxLength,
 	SignUpPasswordMinLength,
 } from "../../../src/const/zod.js";
-import { Currency } from "../../../src/types/db/db.js";
-import type { Order } from "../../../src/types/db/order.js";
-import { type TestApp, withTestApp } from "../../testApp.js";
+import {Currency} from "../../../src/types/db/db.js";
+import type {Order} from "../../../src/types/db/order.js";
+import {type TestApp, withTestApp} from "../../testApp.js";
 
 describe("Order", () => {
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: SignUpPasswordMinLength }),
+		password: faker.internet.password({length: SignUpPasswordMinLength}),
 	};
 
 	const order = {
 		currency: Currency.Rub,
-		phoneNumber: faker.phone.number({ style: "international" }),
+		phoneNumber: faker.phone.number({style: "international"}),
 		email: user.email,
-		name: faker.string.sample({ min: 5, max: CreateOrderNameMaxLength }),
+		name: faker.string.sample({min: 5, max: CreateOrderNameMaxLength}),
 		billingAddress: {
-			city: faker.string.sample({ min: 5, max: CreateOrderCityMaxLength }),
-			street: faker.string.sample({ min: 5, max: CreateOrderStreetMaxLength }),
-			home: faker.string.sample({ min: 5, max: CreateOrderHomeMaxLength }),
+			city: faker.string.sample({min: 5, max: CreateOrderCityMaxLength}),
+			street: faker.string.sample({min: 5, max: CreateOrderStreetMaxLength}),
+			home: faker.string.sample({min: 5, max: CreateOrderHomeMaxLength}),
 			apartment: faker.string.sample({
 				min: 5,
 				max: CreateOrderApartmentMaxLength,
 			}),
 		},
 		deliveryAddress: {
-			city: faker.string.sample({ min: 5, max: CreateOrderCityMaxLength }),
-			street: faker.string.sample({ min: 5, max: CreateOrderStreetMaxLength }),
-			home: faker.string.sample({ min: 5, max: CreateOrderHomeMaxLength }),
+			city: faker.string.sample({min: 5, max: CreateOrderCityMaxLength}),
+			street: faker.string.sample({min: 5, max: CreateOrderStreetMaxLength}),
+			home: faker.string.sample({min: 5, max: CreateOrderHomeMaxLength}),
 			apartment: faker.string.sample({
 				min: 5,
 				max: CreateOrderApartmentMaxLength,
@@ -66,7 +66,7 @@ describe("Order", () => {
 			.selectAll(["productSku"])
 			.execute();
 
-		await testApp.createAndVerify({ body: user });
+		await testApp.createAndVerify({body: user});
 
 		return productsSkus;
 	};
@@ -77,7 +77,7 @@ describe("Order", () => {
 		cookie: LightMyRequestResponse["cookies"][1],
 	) => {
 		const productsInStock = productsSkus.filter((p) => p.quantity > 0);
-		const { id } = await testApp.app.kysely
+		const {id} = await testApp.app.kysely
 			.selectFrom("cart")
 			.select("cart.id")
 			.innerJoin("users", "users.id", "cart.userId")
@@ -109,11 +109,11 @@ describe("Order", () => {
 	};
 
 	describe("Get order", () => {
-		it("Should return 200 status code when request is successfull", async () => {
+		it("Should return 200 status code when request is successful", async () => {
 			await withTestApp(async (testApp) => {
 				const productsSkus = await setup(testApp);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -140,7 +140,7 @@ describe("Order", () => {
 			await withTestApp(async (testApp) => {
 				const productsSkus = await setup(testApp);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -151,8 +151,8 @@ describe("Order", () => {
 				await createOrder(testApp, productsSkus, cookie!);
 
 				const testCases = [
-					{ name: "Not uuid", id: "string" },
-					{ name: "Number", id: 4 },
+					{name: "Not uuid", id: "string"},
+					{name: "Number", id: 4},
 				];
 
 				const responses = await Promise.all(
@@ -184,7 +184,7 @@ describe("Order", () => {
 			await withTestApp(async (testApp) => {
 				await setup(testApp);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -210,7 +210,7 @@ describe("Order", () => {
 			await withTestApp(async (testApp) => {
 				await setup(testApp);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(

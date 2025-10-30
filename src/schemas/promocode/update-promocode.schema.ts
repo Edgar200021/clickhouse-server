@@ -1,6 +1,6 @@
 import { constructNow } from "date-fns";
 import type z from "zod";
-import { PromocodeType } from "../../types/db/db.js";
+import { PromocodeType } from "@/types/db/db.js";
 import { CreatePromocodeRequestSchema } from "./create-promocode.schema.js";
 import { PromocodeAdminSchema } from "./promocode.schema.js";
 

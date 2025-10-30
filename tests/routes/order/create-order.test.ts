@@ -1,5 +1,5 @@
-import { faker } from "@faker-js/faker";
-import { describe, expect, it } from "vitest";
+import {faker} from "@faker-js/faker";
+import {describe, expect, it} from "vitest";
 import {
 	CreateOrderApartmentMaxLength,
 	CreateOrderCityMaxLength,
@@ -8,33 +8,33 @@ import {
 	CreateOrderStreetMaxLength,
 	SignUpPasswordMinLength,
 } from "../../../src/const/zod.js";
-import { Currency, OrderStatus } from "../../../src/types/db/db.js";
-import { omit, type TestApp, withTestApp } from "../../testApp.js";
+import {Currency, OrderStatus} from "../../../src/types/db/db.js";
+import {omit, type TestApp, withTestApp} from "../../testApp.js";
 
 describe("Order", () => {
 	const user = {
 		email: faker.internet.email(),
-		password: faker.internet.password({ length: SignUpPasswordMinLength }),
+		password: faker.internet.password({length: SignUpPasswordMinLength}),
 	};
 
 	const order = {
 		currency: Currency.Rub,
-		phoneNumber: faker.phone.number({ style: "international" }),
+		phoneNumber: faker.phone.number({style: "international"}),
 		email: user.email,
-		name: faker.string.sample({ min: 5, max: CreateOrderNameMaxLength }),
+		name: faker.string.sample({min: 5, max: CreateOrderNameMaxLength}),
 		billingAddress: {
-			city: faker.string.sample({ min: 5, max: CreateOrderCityMaxLength }),
-			street: faker.string.sample({ min: 5, max: CreateOrderStreetMaxLength }),
-			home: faker.string.sample({ min: 5, max: CreateOrderHomeMaxLength }),
+			city: faker.string.sample({min: 5, max: CreateOrderCityMaxLength}),
+			street: faker.string.sample({min: 5, max: CreateOrderStreetMaxLength}),
+			home: faker.string.sample({min: 5, max: CreateOrderHomeMaxLength}),
 			apartment: faker.string.sample({
 				min: 5,
 				max: CreateOrderApartmentMaxLength,
 			}),
 		},
 		deliveryAddress: {
-			city: faker.string.sample({ min: 5, max: CreateOrderCityMaxLength }),
-			street: faker.string.sample({ min: 5, max: CreateOrderStreetMaxLength }),
-			home: faker.string.sample({ min: 5, max: CreateOrderHomeMaxLength }),
+			city: faker.string.sample({min: 5, max: CreateOrderCityMaxLength}),
+			street: faker.string.sample({min: 5, max: CreateOrderStreetMaxLength}),
+			home: faker.string.sample({min: 5, max: CreateOrderHomeMaxLength}),
 			apartment: faker.string.sample({
 				min: 5,
 				max: CreateOrderApartmentMaxLength,
@@ -63,7 +63,7 @@ describe("Order", () => {
 			.selectAll(["productSku"])
 			.execute();
 
-		await testApp.createAndVerify({ body: user });
+		await testApp.createAndVerify({body: user});
 
 		return productsSkus;
 	};
@@ -73,7 +73,7 @@ describe("Order", () => {
 		productsSkus: Awaited<ReturnType<typeof setup>>,
 	) => {
 		const productsInStock = productsSkus.filter((p) => p.quantity > 0);
-		const { id } = await testApp.app.kysely
+		const {id} = await testApp.app.kysely
 			.selectFrom("cart")
 			.select("cart.id")
 			.innerJoin("users", "users.id", "cart.userId")
@@ -93,12 +93,12 @@ describe("Order", () => {
 	};
 
 	describe("Create order", () => {
-		it("Should return 201 status code when request is successfull", async () => {
+		it("Should return 201 status code when request is successful", async () => {
 			await withTestApp(async (testApp) => {
 				const productsSkus = await setup(testApp);
 				await insertValidProductsIntoCart(testApp, productsSkus);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -117,12 +117,12 @@ describe("Order", () => {
 			});
 		});
 
-		it("Should be saved into database when request is successfull", async () => {
+		it("Should be saved into database when request is successful", async () => {
 			await withTestApp(async (testApp) => {
 				const productsSkus = await setup(testApp);
 				await insertValidProductsIntoCart(testApp, productsSkus);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -139,7 +139,7 @@ describe("Order", () => {
 
 				expect(createOrderResponse.statusCode).toBe(201);
 				const {
-					data: { orderNumber },
+					data: {orderNumber},
 				} = createOrderResponse.json<{
 					status: "success";
 					data: { orderNumber: string };
@@ -164,14 +164,14 @@ describe("Order", () => {
 				await insertValidProductsIntoCart(testApp, productsSkus);
 
 				const testCases = [
-					{ name: "Empty body", body: {} },
+					{name: "Empty body", body: {}},
 					{
 						name: "Missing currency",
 						body: omit(order, "currency"),
 					},
 					{
 						name: "Invalid currency",
-						body: { ...order, currency: "invalid currency" },
+						body: {...order, currency: "invalid currency"},
 					},
 					{
 						name: "Missing phone number",
@@ -179,7 +179,7 @@ describe("Order", () => {
 					},
 					{
 						name: "invalid phone number",
-						body: { ...order, phoneNumber: "12321321312312" },
+						body: {...order, phoneNumber: "12321321312312"},
 					},
 					{
 						name: "Missing email",
@@ -187,7 +187,7 @@ describe("Order", () => {
 					},
 					{
 						name: "Invalid email",
-						body: { ...order, email: "invalid email" },
+						body: {...order, email: "invalid email"},
 					},
 					{
 						name: "Missing name",
@@ -350,7 +350,7 @@ describe("Order", () => {
 					},
 				];
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -378,7 +378,7 @@ describe("Order", () => {
 				const productsSkus = await setup(testApp);
 				await insertValidProductsIntoCart(testApp, productsSkus);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -403,7 +403,7 @@ describe("Order", () => {
 
 				const createOrderLastRes = await testApp.createOrder({
 					body: order,
-					cookies: { [cookie!.name]: cookie!.value },
+					cookies: {[cookie!.name]: cookie!.value},
 				});
 
 				expect(createOrderLastRes.statusCode).toBe(400);
@@ -412,10 +412,10 @@ describe("Order", () => {
 
 		it("Should return 400 status code when cart is empty", async () => {
 			await withTestApp(async (testApp) => {
-				const verifyRes = await testApp.createAndVerify({ body: user });
+				const verifyRes = await testApp.createAndVerify({body: user});
 				expect(verifyRes.statusCode).toBe(200);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(
@@ -444,10 +444,10 @@ describe("Order", () => {
 
 		it("Should be rate limited", async () => {
 			await withTestApp(async (testApp) => {
-				const verifyRes = await testApp.createAndVerify({ body: user });
+				const verifyRes = await testApp.createAndVerify({body: user});
 				expect(verifyRes.statusCode).toBe(200);
 
-				const signInRes = await testApp.signIn({ body: user });
+				const signInRes = await testApp.signIn({body: user});
 				expect(signInRes.statusCode).toBe(200);
 
 				const cookie = signInRes.cookies.find(

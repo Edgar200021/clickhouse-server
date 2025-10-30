@@ -1,12 +1,10 @@
-import { readFile } from "node:fs/promises";
-import Fastify, { type FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { setupConfig } from "../../src/config.js";
-import fileUploaderPlugin from "../../src/plugins/app/file-uploader-manager.js";
-import cloudinaryPlugin, {
-	autoConfig,
-} from "../../src/plugins/external/cloudinary.js";
-import { ImagePath } from "../testApp.js";
+import {readFile} from "node:fs/promises";
+import Fastify, {type FastifyInstance} from "fastify";
+import {afterEach, beforeEach, describe, expect, it} from "vitest";
+import {setupConfig} from "../../src/config.js";
+import fileUploaderPlugin from "../../src/plugins/internal/file-uploader-manager.js";
+import cloudinaryPlugin, {autoConfig,} from "../../src/plugins/external/cloudinary.js";
+import {ImagePath} from "../testApp.js";
 
 describe("Plugins", () => {
 	let app: FastifyInstance;

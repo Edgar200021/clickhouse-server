@@ -1,8 +1,9 @@
-import type { LightMyRequestResponse } from "fastify";
-import { describe, expect, it } from "vitest";
-import { GetProductsSkusMaxLimit } from "../../../src/const/zod.js";
-import type { ProductSku } from "../../../src/types/db/product.js";
-import { type TestApp, withTestApp } from "../../testApp.js";
+import type {LightMyRequestResponse} from "fastify";
+import {describe, expect, it} from "vitest";
+import {GetProductsSkusMaxLimit} from "../../../src/const/zod.js";
+import type {ProductSku} from "../../../src/types/db/product.js";
+import {type TestApp, withTestApp} from "../../testApp.js";
+import {Currency} from "../../../src/types/db/db.js";
 
 describe("Product Sku", () => {
 	const setup = async (testApp: TestApp) => {
@@ -31,7 +32,7 @@ describe("Product Sku", () => {
 	};
 
 	describe("Get All", () => {
-		it("Should return 200 status code when request is successfull", async () => {
+		it("Should return 200 status code when request is successful", async () => {
 			await withTestApp(async (testApp) => {
 				const getProductsSkusResponse = await testApp.getProductsSkus();
 
@@ -45,7 +46,7 @@ describe("Product Sku", () => {
 
 				const testCases = [
 					{
-						query: { limit: 5 },
+						query: {limit: 5},
 						expectedLength: 5,
 					},
 					{
@@ -61,7 +62,7 @@ describe("Product Sku", () => {
 								: productsSkus.length,
 					},
 					{
-						query: { search: productsSkus[0].name.slice(0, 4) },
+						query: {search: productsSkus[0].name.slice(0, 4)},
 						expectedLength: productsSkus.filter(
 							(p) =>
 								p.name.includes(productsSkus[0].name.slice(0, 4)) ||
@@ -70,7 +71,7 @@ describe("Product Sku", () => {
 						).length,
 					},
 					{
-						query: { sku: productsSkus[1].sku },
+						query: {sku: productsSkus[1].sku},
 						expectedLength: 1,
 					},
 					{
@@ -79,14 +80,14 @@ describe("Product Sku", () => {
 								productsSkus.length > GetProductsSkusMaxLimit
 									? GetProductsSkusMaxLimit
 									: productsSkus.length,
-							minPrice: productsSkus[1].price,
+							minPrice: testApp.app.priceService.transformPrice(productsSkus[1].price, Currency.Rub, "read"),
 						},
 						expectedLength:
 							productsSkus.filter((pr) => pr.price >= productsSkus[1].price)
 								.length > GetProductsSkusMaxLimit
 								? GetProductsSkusMaxLimit
 								: productsSkus.filter((pr) => pr.price >= productsSkus[1].price)
-										.length,
+									.length,
 					},
 					{
 						query: {
@@ -94,14 +95,14 @@ describe("Product Sku", () => {
 								productsSkus.length > GetProductsSkusMaxLimit
 									? GetProductsSkusMaxLimit
 									: productsSkus.length,
-							maxPrice: productsSkus[2].price,
+							maxPrice: testApp.app.priceService.transformPrice(productsSkus[2].price, Currency.Rub, "read"),
 						},
 						expectedLength:
 							productsSkus.filter((pr) => pr.price <= productsSkus[2].price)
 								.length > GetProductsSkusMaxLimit
 								? GetProductsSkusMaxLimit
 								: productsSkus.filter((pr) => pr.price <= productsSkus[2].price)
-										.length,
+									.length,
 					},
 					{
 						query: {
@@ -221,6 +222,9 @@ describe("Product Sku", () => {
 					{
 						inStock: "Invalid value",
 					},
+					{
+						"sort": "invalidsort"
+					}
 				];
 				const responses = await Promise.all(
 					testCases.map(

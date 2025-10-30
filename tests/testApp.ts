@@ -1,30 +1,25 @@
 import path from "node:path";
-import { PostgreSqlContainer } from "@testcontainers/postgresql";
-import { RedisContainer } from "@testcontainers/redis";
-import type {
-	FastifyInstance,
-	InjectOptions,
-	LightMyRequestResponse,
-} from "fastify";
-import { runMigrations } from "../scripts/db-migrate.js";
-import { runSeed } from "../scripts/db-seed.js";
-import { buildApp } from "../src/app.js";
-import { setupConfig } from "../src/config.js";
-import { MaxCartItemCount } from "../src/const/const.js";
-import { VerificationPrefix } from "../src/const/redis.js";
-import type { CartItem } from "../src/types/db/cart.js";
-import type { Category } from "../src/types/db/category.js";
-import type { UserRole } from "../src/types/db/db.js";
-import type { Manufacturer } from "../src/types/db/manufacturer.js";
-import type { Order } from "../src/types/db/order.js";
+import {RedisContainer} from "@testcontainers/redis";
+import type {FastifyInstance, InjectOptions, LightMyRequestResponse,} from "fastify";
+import {buildApp} from "../src/app.js";
+import {setupConfig} from "../src/config.js";
+import {MaxCartItemCount} from "../src/const/const.js";
+import {VerificationPrefix} from "../src/const/redis.js";
+import type {CartItem} from "../src/types/db/cart.js";
+import type {Category} from "../src/types/db/category.js";
+import type {UserRole} from "../src/types/db/db.js";
+import type {Manufacturer} from "../src/types/db/manufacturer.js";
+import type {Order} from "../src/types/db/order.js";
 import type {
 	Product,
 	ProductSku,
 	ProductSkuImages,
 	ProductSkuPackage,
 } from "../src/types/db/product.js";
-import type { Promocode } from "../src/types/db/promocode.js";
-import type { User } from "../src/types/db/user.js";
+import type {Promocode} from "../src/types/db/promocode.js";
+import type {User} from "../src/types/db/user.js";
+import {setupDb} from "./setupDb.js";
+import {randomUUID} from "node:crypto";
 
 export type WithSignIn<T extends unknown[] = unknown[]> = {
 	fn: (
@@ -146,7 +141,7 @@ async function createAndVerify(
 		.at(-1);
 
 	return this.accountVerification({
-		body: { token },
+		body: {token},
 	});
 }
 
@@ -189,12 +184,12 @@ async function withSignIn<
 	) {
 		await this.app.kysely
 			.updateTable("users")
-			.set({ role })
+			.set({role})
 			.where("email", "=", signInBody.body.email.toLowerCase())
 			.execute();
 	}
 
-	const signInRes = await this.signIn({ ...signInBody });
+	const signInRes = await this.signIn({...signInBody});
 	if (signInRes.statusCode !== 200) {
 		throw new Error("Failed to sign in");
 	}
@@ -210,22 +205,22 @@ async function withSignIn<
 	const run = (item: InjectOptions | WithSignIn) =>
 		"fn" in item
 			? item.fn.call(
-					this,
-					{
-						...item.args,
-						cookies: {
-							...(item.args?.cookies || {}),
-							[cookie.name]: cookie.value,
-						},
+				this,
+				{
+					...item.args,
+					cookies: {
+						...(item.args?.cookies || {}),
+						[cookie.name]: cookie.value,
 					},
-					...(Array.isArray(item.additionalArg)
-						? item.additionalArg
-						: [item.additionalArg]),
-				)
+				},
+				...(Array.isArray(item.additionalArg)
+					? item.additionalArg
+					: [item.additionalArg]),
+			)
 			: this.app.inject({
-					...item,
-					cookies: { ...(item.cookies || {}), [cookie.name]: cookie.value },
-				});
+				...item,
+				cookies: {...(item.cookies || {}), [cookie.name]: cookie.value},
+			});
 
 	if (Array.isArray(arg)) {
 		return Promise.all(arg.map(run));
@@ -723,16 +718,8 @@ async function deletePromocode(
 export async function buildTestApp(): Promise<TestApp> {
 	const config = setupConfig();
 
-	const [postgresContainer, redisContainer] = await Promise.all([
-		new PostgreSqlContainer("postgres:16-alpine").start(),
-		new RedisContainer("redis:7").withExposedPorts(6379).start(),
-	]);
+	const redisContainer = await new RedisContainer("redis:7").withExposedPorts(6379).start()
 
-	config.database.host = postgresContainer.getHost();
-	config.database.port = postgresContainer.getPort();
-	config.database.name = postgresContainer.getDatabase();
-	config.database.user = postgresContainer.getUsername();
-	config.database.password = postgresContainer.getPassword();
 
 	config.redis.host = redisContainer.getHost();
 	config.redis.port = redisContainer.getMappedPort(6379);
@@ -751,17 +738,19 @@ export async function buildTestApp(): Promise<TestApp> {
 
 	config.logger.logToFile = false;
 
-	await runMigrations(postgresContainer.getConnectionUri());
-	await runSeed(postgresContainer.getConnectionUri());
+	config.database.name = `test-${randomUUID().toString()}`
 
+	const {removeDb} = await setupDb(config.database)
 	const fastify = await buildApp(config);
 
 	return {
 		app: fastify,
 		async close() {
-			await fastify.close();
-			await redisContainer.stop({ remove: true, removeVolumes: true });
-			await postgresContainer.stop({ removeVolumes: true, remove: true });
+			await fastify.close()
+			await Promise.all([
+				removeDb(),
+				redisContainer.stop({remove: true, removeVolumes: true})
+			])
 		},
 		signUp,
 		accountVerification,
@@ -814,12 +803,16 @@ export async function buildTestApp(): Promise<TestApp> {
 	};
 }
 
-export async function withTestApp(fn: (app: TestApp) => Promise<void>) {
+export async function withTestApp(
+	fn: (app: TestApp) => Promise<void>,
+	closeFn?: (app: TestApp) => Promise<void>,
+) {
 	const app = await buildTestApp();
 
 	try {
 		await fn(app);
 	} finally {
+		if (closeFn) await closeFn(app);
 		await app.close();
 	}
 }

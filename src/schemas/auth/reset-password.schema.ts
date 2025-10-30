@@ -2,7 +2,7 @@ import z from "zod";
 import {
 	SignUpPasswordMaxLength,
 	SignUpPasswordMinLength,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 
 export const ResetPasswordRequestSchema = z.object({
 	token: z.string(),

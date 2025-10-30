@@ -5,7 +5,7 @@ import {
 	ProductMaterialAndCareMaxLength,
 	ProductNameMaxLength,
 	ProductShortDescriptionMaxLength,
-} from "../../const/zod.js";
+} from "@/const/zod.js";
 import { ProductAdminSchema } from "./product.schema.js";
 
 export const CreateProductRequestSchema = z.object({
