@@ -1,4 +1,4 @@
-import { z } from "zod";
+import {z} from "zod";
 
 declare module "fastify" {
 	interface FastifyInstance {
@@ -49,7 +49,6 @@ export const configSchema = z.object({
 		ssl: z.enum(["true", "false"]).transform((value) => value === "true"),
 		poolMin: z.coerce.number().min(1).max(5).default(2).optional(),
 		poolMax: z.coerce.number().min(1).max(10).default(10).optional(),
-		databaseUrl: z.string(),
 	}),
 	redis: z.object({
 		host: z.string(),
@@ -58,11 +57,8 @@ export const configSchema = z.object({
 		db: z.coerce.number().min(0).optional(),
 	}),
 	logger: z.object({
-		logLevel: z.enum(["info", "warn", "error", "fatal"]).optional(),
-		logToFile: z.enum(["true", "false"]).transform((value) => value === "true"),
-		logInfoPath: z.string().optional(),
-		logWarnPath: z.string().optional(),
-		logErrorPath: z.string().optional(),
+		logLevel: z.enum(["info", "warn", "error", "fatal", "debug"]).optional(),
+		structured: z.enum(["true", "false"]).transform((value) => value === "true"),
 	}),
 	mailer: z.object({
 		host: z.string(),
@@ -161,15 +157,15 @@ export const configSchema = z.object({
 export type Config = z.Infer<typeof configSchema>;
 
 export function setupConfig(): Config {
-	const config = configSchema.parse({
+	return configSchema.parse({
 		application: {
 			port: process.env.APPLICATION_PORT,
 			host: process.env.APPLICATION_HOST,
 			clientUrl: process.env.APPLICATION_CLIENTURL,
 			clientAccountVerificationPath:
-				process.env.APPLICATION_CLIENT_ACCOUNT_VERIFICATION_PATH,
+			process.env.APPLICATION_CLIENT_ACCOUNT_VERIFICATION_PATH,
 			clientResetPasswordPath:
-				process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
+			process.env.APPLICATION_CLIENT_RESET_PASSWORD_PATH,
 			clientOrdersPath: process.env.APPLICATION_ORDERS_PATH,
 			cookieSecret: process.env.APPLICATION_COOKIE_SECRET,
 			cookieSecure: process.env.APPLICATION_COOKIE_SECURE,
@@ -199,7 +195,6 @@ export function setupConfig(): Config {
 			ssl: process.env.DATABASE_SSL,
 			poolMin: process.env.DATABASE_POOL_MIN,
 			poolMax: process.env.DATABASE_POOL_MAX,
-			databaseUrl: process.env.DATABASE_URL,
 		},
 		redis: {
 			host: process.env.REDIS_HOST,
@@ -208,10 +203,8 @@ export function setupConfig(): Config {
 			db: process.env.REDIS_DB,
 		},
 		logger: {
-			logToFile: process.env.LOG_TO_FILE,
-			logInfoPath: process.env.LOG_INFO_PATH,
-			logWarnPath: process.env.LOG_WARN_PATH,
-			logErrorPath: process.env.LOG_ERROR_PATH,
+			logLevel: process.env.LOG_LEVEL,
+			structured: process.env.LOG_STRUCTURED,
 		},
 		mailer: {
 			host: process.env.NODEMAILER_HOST,
@@ -231,7 +224,6 @@ export function setupConfig(): Config {
 			baseUrl: process.env.EXCHANGE_RATE_BASE_URL,
 			apiKey: process.env.EXCHANGE_RATE_API_KEY,
 		},
-
 		stripe: {
 			secretKey: process.env.STRIPE_SECRET_KEY,
 		},
@@ -263,5 +255,4 @@ export function setupConfig(): Config {
 		},
 	});
 
-	return config;
 }

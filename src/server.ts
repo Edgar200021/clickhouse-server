@@ -1,15 +1,18 @@
 import closeWithGrace from "close-with-grace";
-import { buildApp } from "./app.js";
-import { setupConfig } from "./config.js";
+import {buildApp} from "./app.js";
+import {setupConfig} from "./config.js";
+import {setupLogger} from "./logger.js";
 
 const config = setupConfig();
-const app = await buildApp(config);
+
+const logger = setupLogger(config.logger)
+const app = await buildApp(config, logger);
 
 closeWithGrace(
-	{ delay: Number(app.config.application.fastifyCloseGraceDelay) || 500 },
-	async ({ err, signal }) => {
+	{delay: Number(app.config.application.fastifyCloseGraceDelay) || 500},
+	async ({err, signal}) => {
 		if (err) {
-			app.log.fatal({ err }, "server closing with error");
+			app.log.fatal({err}, "server closing with error");
 		} else {
 			app.log.info(`${signal} received, server closing `);
 		}
@@ -19,7 +22,7 @@ closeWithGrace(
 	},
 );
 
-const { port, host } = app.config.application;
+const {port, host} = app.config.application;
 try {
 	await app.listen({
 		host: host,

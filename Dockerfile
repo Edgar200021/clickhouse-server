@@ -5,9 +5,10 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 
-RUN npm run build
+#RUN npm run build
 
-CMD [ "npm", "run", "start:dev" ]
+RUN npm install -g concurrently
+CMD ["concurrently", "npm run migration:run", "npm run start:dev" ]
 
 FROM node:22-alpine as production
 

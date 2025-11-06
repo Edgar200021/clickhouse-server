@@ -79,7 +79,8 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.development.local
+.env.development
+.env.local
 .env.test.local
 .env.production.local
 .env.local
@@ -127,6 +128,8 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+.vscode
+.idea
 
 # yarn v2
 .yarn/cache

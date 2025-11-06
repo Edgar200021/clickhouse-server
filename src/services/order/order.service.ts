@@ -1,30 +1,21 @@
-import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type {FastifyBaseLogger, FastifyInstance} from "fastify";
 import fp from "fastify-plugin";
-import {
-	type Expression,
-	type ExpressionBuilder,
-	type SqlBool,
-	sql,
-} from "kysely";
-import type { GetOrdersRequestQuery } from "@/schemas/order/get-orders.schema.js";
-import type { GetOrdersAdminRequestQuery } from "@/schemas/order/get-orders-admin.schema.js";
-import type { OrderParam } from "@/schemas/order/order-param.schema.js";
-import { cancelExpiredOrders } from "@/services/order/cancel-expired-orders.js";
-import { create } from "@/services/order/create.js";
-import { getAll } from "@/services/order/get-all.js";
-import { getAllByUserId } from "@/services/order/get-all-by-user-id.js";
-import { getOne } from "@/services/order/get-one.js";
-import { getOneByUserId } from "@/services/order/get-one-by-user-id.js";
-import type { Combined, Nullable, WithPageCount } from "@/types/base.js";
-import { type DB, PromocodeType, UserRole } from "@/types/db/db.js";
-import type { Order, OrderItem } from "@/types/db/order.js";
-import type {
-	Product,
-	ProductSku,
-	ProductSkuImages,
-} from "@/types/db/product.js";
-import type { Promocode } from "@/types/db/promocode.js";
-import type { User } from "@/types/db/user.js";
+import {type Expression, type ExpressionBuilder, sql, type SqlBool,} from "kysely";
+import type {GetOrdersRequestQuery} from "@/schemas/order/get-orders.schema.js";
+import type {GetOrdersAdminRequestQuery} from "@/schemas/order/get-orders-admin.schema.js";
+import type {OrderParam} from "@/schemas/order/order-param.schema.js";
+import {cancelExpiredOrders} from "@/services/order/cancel-expired-orders.js";
+import {create} from "@/services/order/create.js";
+import {getAll} from "@/services/order/get-all.js";
+import {getAllByUserId} from "@/services/order/get-all-by-user-id.js";
+import {getOne} from "@/services/order/get-one.js";
+import {getOneByUserId} from "@/services/order/get-one-by-user-id.js";
+import type {Combined, Nullable, WithPageCount} from "@/types/base.js";
+import {type DB, PromocodeType, UserRole} from "@/types/db/db.js";
+import type {Order, OrderItem} from "@/types/db/order.js";
+import type {Product, ProductSku, ProductSkuImages,} from "@/types/db/product.js";
+import type {Promocode} from "@/types/db/promocode.js";
+import type {User} from "@/types/db/user.js";
 
 declare module "fastify" {
 	export interface FastifyInstance {
@@ -34,55 +25,55 @@ declare module "fastify" {
 
 export type GetAllResult<T extends UserRole> = T extends UserRole.Admin
 	? Combined<
-			Order,
-			Pick<Promocode, "code" | "discountValue" | "type">,
-			"promocode",
-			true
-		> & {
-			preview: {
-				imageUrL: string;
-				orderItemCount: number;
-			};
-		}
+	Order,
+	Pick<Promocode, "code" | "discountValue" | "type">,
+	"promocode",
+	true
+> & {
+	preview: {
+		imageUrL: string;
+		orderItemCount: number;
+	};
+}
 	: Combined<
-			Omit<Order, "id" | "updatedAt" | "userId">,
-			Pick<Promocode, "id" | "code" | "discountValue" | "type">,
-			"promocode",
-			true
-		> & {
-			preview: {
-				imageUrL: string;
-				orderItemCount: number;
-			};
-		};
+	Omit<Order, "id" | "updatedAt" | "userId">,
+	Pick<Promocode, "id" | "code" | "discountValue" | "type">,
+	"promocode",
+	true
+> & {
+	preview: {
+		imageUrL: string;
+		orderItemCount: number;
+	};
+};
 
 export type GetOneResult<T extends UserRole> = T extends UserRole.Admin
 	? Combined<
-			Omit<Order, "id" | "promocodeId" | "updatedAt" | "userId">,
-			{
-				productSkuId: ProductSku["id"];
-				name: Product["name"];
-				image: ProductSkuImages["imageUrl"];
-				price: OrderItem["price"];
-				quantity: OrderItem["quantity"];
-			}[],
-			"orderItems"
-		> & {
-			promocode: Nullable<Pick<Promocode, "code" | "discountValue" | "type">>;
-		}
+	Omit<Order, "id" | "promocodeId" | "updatedAt" | "userId">,
+	{
+		productSkuId: ProductSku["id"];
+		name: Product["name"];
+		image: ProductSkuImages["imageUrl"];
+		price: OrderItem["price"];
+		quantity: OrderItem["quantity"];
+	}[],
+	"orderItems"
+> & {
+	promocode: Nullable<Pick<Promocode, "code" | "discountValue" | "type">>;
+}
 	: Combined<
-			Omit<Order, "id" | "promocodeId" | "updatedAt" | "userId">,
-			{
-				name: Product["name"];
-				image: ProductSkuImages["imageUrl"];
-				price: OrderItem["price"];
-				quantity: OrderItem["quantity"];
-			}[],
-			"orderItems"
-		> & {
-			promocode: Nullable<Pick<Promocode, "code" | "discountValue" | "type">>;
-			paymentTimeoutInMinutes: number;
-		};
+	Omit<Order, "id" | "promocodeId" | "updatedAt" | "userId">,
+	{
+		name: Product["name"];
+		image: ProductSkuImages["imageUrl"];
+		price: OrderItem["price"];
+		quantity: OrderItem["quantity"];
+	}[],
+	"orderItems"
+> & {
+	promocode: Nullable<Pick<Promocode, "code" | "discountValue" | "type">>;
+	paymentTimeoutInMinutes: number;
+};
 
 export type GetAllQuery<T extends UserRole> = T extends UserRole.Admin
 	? GetOrdersAdminRequestQuery
@@ -109,7 +100,7 @@ export class OrderService {
 		userId: T extends UserRole.Regular ? User["id"] : undefined,
 		log: FastifyBaseLogger,
 	): Promise<GetOneResult<T>> {
-		const { kysely, httpErrors, priceService, productSkuService, config } =
+		const {kysely, httpErrors, priceService, productSkuService, config} =
 			this.fastify;
 
 		const order = await kysely
@@ -126,7 +117,7 @@ export class OrderService {
 
 		if (!order) {
 			log.info(
-				{ userId, orderNumber: param.orderNumber },
+				{userId, orderNumber: param.orderNumber},
 				"Get order by user id failed: order not found",
 			);
 			throw httpErrors.notFound("Order not found");
@@ -161,7 +152,7 @@ export class OrderService {
 				const productSku = productMap.get(item.productSkuId)!;
 
 				return {
-					...(role === UserRole.Admin && { productSkuId: productSku.id }),
+					...(role === UserRole.Admin && {productSkuId: productSku.id}),
 					name: productSku.name,
 					image: productSku.images?.[0]?.imageUrl || "",
 					price: item.price,
@@ -170,19 +161,19 @@ export class OrderService {
 			}),
 			promocode: order.discountValue
 				? {
-						discountValue:
-							order.type! === PromocodeType.Percent
-								? order.discountValue
-								: priceService
-										.transformPrice(
-											Number(order.discountValue),
-											order.currency,
-											"read",
-										)
-										.toString(),
-						type: order.type!,
-						code: order.code!,
-					}
+					discountValue:
+						order.type! === PromocodeType.Percent
+							? order.discountValue
+							: priceService
+								.transformPrice(
+									Number(order.discountValue),
+									order.currency,
+									"read",
+								)
+								.toString(),
+					type: order.type!,
+					code: order.code!,
+				}
 				: null,
 			...(role === UserRole.Regular && {
 				paymentTimeoutInMinutes: config.application.orderPaymentTTLMinutes,
@@ -195,7 +186,7 @@ export class OrderService {
 		role: T,
 		userId: T extends UserRole.Regular ? User["id"] : undefined,
 	): Promise<WithPageCount<GetAllResult<T>[], "orders">> {
-		const { kysely, httpErrors, priceService, productSkuService, config } =
+		const {kysely, httpErrors, priceService, productSkuService, config} =
 			this.fastify;
 
 		const orders = await kysely
@@ -213,7 +204,7 @@ export class OrderService {
 			.offset(query.limit * (query.page - 1))
 			.execute();
 
-		if (!orders.length) return { orders: [], pageCount: 0 };
+		if (!orders.length) return {orders: [], pageCount: 0};
 
 		const results: GetAllResult<T>[] = await Promise.all(
 			orders.map(async (order) => {
@@ -248,20 +239,20 @@ export class OrderService {
 					},
 					promocode: order.discountValue
 						? {
-								...(role === UserRole.Admin && { id: order.promocodeId! }),
-								discountValue:
-									order.type! === PromocodeType.Percent
-										? order.discountValue
-										: priceService
-												.transformPrice(
-													Number(order.discountValue),
-													order.currency,
-													"read",
-												)
-												.toString(),
-								type: order.type!,
-								code: order.code!,
-							}
+							...(role === UserRole.Admin && {id: order.promocodeId!}),
+							discountValue:
+								order.type! === PromocodeType.Percent
+									? order.discountValue
+									: priceService
+										.transformPrice(
+											Number(order.discountValue),
+											order.currency,
+											"read",
+										)
+										.toString(),
+							type: order.type!,
+							code: order.code!,
+						}
 						: null,
 				};
 
@@ -269,7 +260,7 @@ export class OrderService {
 			}),
 		);
 
-		const { count } = await kysely
+		const {count} = await kysely
 			.selectFrom("order")
 			.select((eb) => eb.fn.countAll().as("count"))
 			.$if(typeof userId === "string", (eb) =>
@@ -298,9 +289,9 @@ export class OrderService {
 				eb.or([
 					eb(
 						sql`"order"
-          .
-          number
-          ::text`,
+            .
+            number
+            ::text`,
 						"like",
 						`%${query.search}%`,
 					),
@@ -321,7 +312,7 @@ export class OrderService {
 		return (
 			Date.now() >
 			new Date(orderCreatedAt).getTime() +
-				this.fastify.config.application.orderPaymentTTLMinutes * 60000
+			this.fastify.config.application.orderPaymentTTLMinutes * 60000
 		);
 	}
 }

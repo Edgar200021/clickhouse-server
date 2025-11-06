@@ -1,12 +1,18 @@
-import {Config} from "../src/config.js";
-import pg from "pg";
-import {CamelCasePlugin, Kysely, type Migration, Migrator, PostgresDialect} from "kysely";
-import type {DB} from "../src/types/db/db.js";
+import { exec } from "node:child_process";
+import { promises as fs } from "node:fs";
 import path from "node:path";
-import {promises as fs} from "fs";
-import {promisify} from "node:util";
-import {exec} from "node:child_process";
+import { promisify } from "node:util";
+import {
+	CamelCasePlugin,
+	Kysely,
+	type Migration,
+	Migrator,
+	PostgresDialect,
+} from "kysely";
+import pg from "pg";
 import ts from "ts-node";
+import type { Config } from "../src/config.js";
+import type { DB } from "../src/types/db/db.js";
 
 const execAsync = promisify(exec);
 
@@ -15,7 +21,8 @@ ts.register({
 });
 
 const runSeed = async (databaseUrl?: string) => {
-	const {stderr} = await execAsync("npm run seed:run", {
+	console.log(process.env);
+	const { stderr } = await execAsync("npm run seed:run", {
 		env: {
 			...process.env,
 			DATABASE_URL: databaseUrl || process.env.DATABASE_URL,
@@ -24,8 +31,7 @@ const runSeed = async (databaseUrl?: string) => {
 	if (stderr) {
 		throw new Error(`Seed error: ${stderr}`);
 	}
-}
-
+};
 
 export const setupDb = async (config: Config["database"]) => {
 	const removeDb = async () => {
@@ -48,8 +54,7 @@ export const setupDb = async (config: Config["database"]) => {
 		} catch (err) {
 			console.error(`Failed to remove database "${config.name}"`, err);
 		}
-	}
-
+	};
 
 	try {
 		const adminPool = new pg.Pool({
@@ -57,17 +62,19 @@ export const setupDb = async (config: Config["database"]) => {
 			port: config.port,
 			user: config.user,
 			password: config.password,
-			database: "postgres"
+			database: "postgres",
 		});
 
 		const adminClient = await adminPool.connect();
-		const res = await adminClient.query(`SELECT 1
+		const res = await adminClient.query(
+			`SELECT 1
                                          FROM pg_database
-                                         WHERE datname = $1`, [config.name]);
+                                         WHERE datname = $1`,
+			[config.name],
+		);
 		if (res.rowCount === 0) {
 			await adminClient.query(`CREATE DATABASE "${config.name}"`);
 		}
-
 
 		adminClient.release();
 		await adminPool.end();
@@ -77,7 +84,7 @@ export const setupDb = async (config: Config["database"]) => {
 			port: config.port,
 			user: config.user,
 			password: config.password,
-			database: config.name
+			database: config.name,
 		});
 
 		const db = new Kysely<DB>({
@@ -103,13 +110,13 @@ export const setupDb = async (config: Config["database"]) => {
 						const importPath = path
 							.join(absolutePath, fileName)
 							.replaceAll("\\", "/");
-						const {up, down} = await import(importPath);
+						const { up, down } = await import(importPath);
 						const migrationKey = fileName.substring(
 							0,
 							fileName.lastIndexOf("."),
 						);
 
-						migrations[migrationKey] = {up, down};
+						migrations[migrationKey] = { up, down };
 					}
 
 					return migrations;
@@ -117,25 +124,26 @@ export const setupDb = async (config: Config["database"]) => {
 			},
 		});
 
-		const {error} = await migrator.migrateToLatest();
+		const { error } = await migrator.migrateToLatest();
 
 		if (error) {
 			console.error("Failed to run migrations", error);
 			throw error;
 		}
 
-
 		await db.destroy();
-		await runSeed(`postgres://${config.user}:${config.password}@${config.host}:${config.port}/${config.name}`)
+		await runSeed(
+			`postgres://${config.user}:${config.password}@${config.host}:${config.port}/${config.name}`,
+		);
 
 		console.log("🎉 All migrations applied successfully.");
 
 		return {
-			removeDb
+			removeDb,
 		};
 	} catch (error) {
-		await removeDb()
+		await removeDb();
 		console.error("Failed to apply migrations", error);
 		process.exit(1);
 	}
-}
+};

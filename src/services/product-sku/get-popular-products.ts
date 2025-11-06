@@ -36,6 +36,10 @@ export async function getPopularProducts<T extends UserRole>(this: ProductSkuSer
 		topIds.push(...fallbackIds.map(({id}) => ({id, orderItemQuantity: 0})))
 	}
 
+	if (topIds.length === 0) {
+		return [];
+	}
+
 	const popular = await this.buildAdminProductSku()
 		.where("productSku.id", "in", topIds.map(p => p.id))
 		.execute()
